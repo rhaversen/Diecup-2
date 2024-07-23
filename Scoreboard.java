@@ -29,11 +29,11 @@ public class Scoreboard {
     }
 
     public int getPointsForValue(int number) {
-        return this.points.get(number);
+        return points.get(number);
     }
 
     public Map<Integer, Integer> getPoints() {
-        return this.points;
+        return points;
     }
 
     public void reset() {
