@@ -8,3 +8,21 @@
 // 6. If the player manages to get a number on the scoreboard to 5 points, all die go back into the cup and the player can start again with 5 dice and a different number on the scoreboard.
 // 7. if the player gets the same 7-12 number three times in a row, all die go back into the cup and the player can start again with 5 dice and a different or same number on the scoreboard.
 // 7. The players final score will be how many turns it took to get all numbers 5 times.
+
+public class Game {
+    private StrategyInterface strategy;
+    private DieCup dieCup;
+    private Scoreboard scoreboard;
+    private int turns;
+
+    public Game(int numberOfDice, int sides, StrategyInterface strategy) {
+        dieCup = new DieCup(numberOfDice, sides);
+        scoreboard = new Scoreboard();
+        turns = 0;
+        this.strategy = strategy;
+    }
+
+    public int getTurns() {
+        return this.turns;
+    }
+}
