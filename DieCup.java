@@ -5,24 +5,24 @@ public class DieCup {
     private Die[] dieList;
 
     public DieCup(int numberOfDice, int sides) {
-        this.dieList = new Die[numberOfDice];
+        dieList = new Die[numberOfDice];
         for (int i = 0; i < numberOfDice; i++) {
-            this.dieList[i] = new Die(sides);
+            dieList[i] = new Die(sides);
         }
     }
 
     public void roll() {
-        for (Die die : this.dieList) {
+        for (Die die : dieList) {
             die.roll();
         }
     }
 
     public Map<Integer, Integer> getValuesMap() {
         HashMap<Integer, Integer> valuesMap = new HashMap<>();
-        int n = this.dieList.length;
+        int n = dieList.length;
 
         for (int i = 0; i < n; i++) {
-            Die die1 = this.dieList[i];
+            Die die1 = dieList[i];
             int faceValue1 = die1.getFaceValue();
 
             // Add all single die values to the map
@@ -31,7 +31,7 @@ public class DieCup {
             // Add all possible combinations of two dice to the map
             // Only add with dice after i'th to avoid double counting
             for (int j = i + 1; j < n; j++) {
-                Die die2 = this.dieList[j];
+                Die die2 = dieList[j];
                 int faceValue2 = die2.getFaceValue();
                 int sum = faceValue1 + faceValue2;
                 
