@@ -29,6 +29,7 @@ public class DieCup {
             valuesMap.put(faceValue1, valuesMap.getOrDefault(faceValue1, 0) + 1);
 
             // Add all possible combinations of two dice to the map
+            // Only add with dice after i'th to avoid double counting
             for (int j = i + 1; j < n; j++) {
                 Die die2 = this.dieList[j];
                 int faceValue2 = die2.getFaceValue();
