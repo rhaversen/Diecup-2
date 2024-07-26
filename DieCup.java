@@ -3,8 +3,6 @@ import java.util.Map;
 
 public class DieCup {
     private Die[] dieList;
-    private int numberOfDice;
-    private int sides;
     private Map<Integer, Integer> valuesMap;
 
     public DieCup(int numberOfDice, int sides) {
@@ -12,8 +10,6 @@ public class DieCup {
         for (int i = 0; i < numberOfDice; i++) {
             dieList[i] = new Die(sides);
         }
-        this.numberOfDice = numberOfDice;
-        this.sides = sides;
         generateValuesMap();
     }
 
