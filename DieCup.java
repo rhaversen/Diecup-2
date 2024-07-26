@@ -21,6 +21,18 @@ public class DieCup {
         }
     }
 
+    public int[] getDiceValues() {
+        int[] dice = new int[dieList.length];
+        for (int i = 0; i < dieList.length; i++) {
+            dice[i] = dieList[i].getFaceValue();
+        }
+        return dice;
+    }
+
+    public int getAmountOfDice() {
+        return dieList.length;
+    }
+
     public Map<Integer, Integer> getValuesMap() {
         Map<Integer, Integer> singleDieValuesMap = new HashMap<>();
         Map<Integer, Integer> pairDieValuesMap = new HashMap<>();
