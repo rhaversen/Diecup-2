@@ -30,6 +30,10 @@ public class Scoreboard {
         this.points.put(number, points);
     }
 
+    public void addPoints(int number, int points) {
+        this.points.put(number, Math.min(this.points.get(number) + points, 5));
+    }
+
     public int getPoints(int number) {
         return points.getOrDefault(number, 0);
     }
