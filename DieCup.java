@@ -67,17 +67,17 @@ public class DieCup {
         }
 
         // Merge the two maps, overwriting the single die values with the pair die values
-        Map<Integer, Integer> valuesMap = new HashMap<>();
+        Map<Integer, Integer> localValuesMap = new HashMap<>();
         for (Map.Entry<Integer, Integer> entry : singleDieValuesMap.entrySet()) {
-            valuesMap.put(entry.getKey(), entry.getValue());
+            localValuesMap.put(entry.getKey(), entry.getValue());
         }
         for (Map.Entry<Integer, Integer> entry : pairDieValuesMap.entrySet()) {
-            if (entry.getValue() > valuesMap.getOrDefault(entry.getKey(), 0)) {
-                valuesMap.put(entry.getKey(), entry.getValue());
+            if (entry.getValue() > localValuesMap.getOrDefault(entry.getKey(), 0)) {
+                localValuesMap.put(entry.getKey(), entry.getValue());
             }
         }
 
-        this.valuesMap = valuesMap;
+        valuesMap = localValuesMap;
     }
 
     private int countSumPairs(Die[] dieList, int target) {
