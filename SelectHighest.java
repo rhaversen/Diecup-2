@@ -3,7 +3,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-public class SelectHighest implements StrategyInterface {
+public class SelectHighest implements Strategy {
     public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {
         Set<Integer> scoreboardKeys = scoreboard.getPoints().keySet();
         for (int scoreboardKey : scoreboardKeys) {

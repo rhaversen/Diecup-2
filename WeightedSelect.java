@@ -2,7 +2,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public class WeightedSelect implements StrategyInterface {
+public class WeightedSelect implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();
 
     public WeightedSelect(int numberOfDice, int sides) {

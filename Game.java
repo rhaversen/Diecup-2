@@ -12,13 +12,13 @@
 import java.util.Arrays;
 
 public class Game {
-    private StrategyInterface strategy;
+    private Strategy strategy;
     private Scoreboard scoreboard;
     private int turns;
     private int defaultNumberOfDice;
     private int defaultSides;
 
-    public Game(int numberOfDice, int sides, StrategyInterface strategy) {
+    public Game(int numberOfDice, int sides, Strategy strategy) {
         scoreboard = new Scoreboard();
         turns = 0;
         this.strategy = strategy;
