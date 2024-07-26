@@ -120,13 +120,4 @@ public class DieCup {
         }
         return maxCount;
     }
-
-    public void removeDice(int amount) {
-        if (amount > dieList.length) return;
-        if (amount == dieList.length) dieList = new Die[0];
-
-        for (int i = dieList.length - amount; i < dieList.length; i++) {
-            dieList[i] = null;
-        }
-    }
 }
