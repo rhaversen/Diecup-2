@@ -35,8 +35,6 @@ public class Game {
     }
 
     public void playTurn() {
-        System.out.println("Turn: " + turns);
-
         DieCup dieCup = new DieCup(defaultNumberOfDice, defaultSides);
 
         int selectedNumber = strategy.getSelectedNumber(dieCup.getValuesMap(), scoreboard);
@@ -50,14 +48,12 @@ public class Game {
         // If all dice can be collected, or the scoreboard reaches 5 for the given
         // number, play another turn.
         if (selectedNumber == -1) {
-            System.out.println("No number selected");
             return;
         }
 
         boolean canMakeNumber = dieCup.getValuesMap().containsKey(selectedNumber);
 
         if (!canMakeNumber) {
-            System.out.println("No dice can make " + selectedNumber);
             return;
         }
 
@@ -69,17 +65,6 @@ public class Game {
 
         boolean allDiceCollected = diceRemainingAfterCollection <= 0;
         boolean fullPointsReached = scoreboard.getPoints(selectedNumber) >= 5;
-
-        System.out.println("Scoreboard: " + scoreboard.getPoints().toString());
-        System.out.println("Dice: " + Arrays.toString(dieCup.getDiceValues()));
-        System.out.println("Values Map: " + dieCup.getValuesMap().toString());
-        System.out.println("Selected Number: " + selectedNumber);
-        System.out.println("Can make number: " + canMakeNumber);
-        System.out.println("All dice collected: " + allDiceCollected);
-        System.out.println("Full points reached: " + fullPointsReached);
-        System.out.println("Points: " + points);
-        System.out.println("Amount of dice to remove: " + amountOfDiceToRemove);
-        System.out.println("Dice remaining after collection: " + diceRemainingAfterCollection);
 
         if (allDiceCollected || fullPointsReached) {
             // Start a new turn without incrementing turns as this is a free turn
