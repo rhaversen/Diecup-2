@@ -1,3 +1,5 @@
+package diecup;
+
 import java.util.HashMap;
 import java.util.Map;
 

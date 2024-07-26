@@ -1,4 +1,7 @@
+package strategies;
 import java.util.Map;
+
+import diecup.Scoreboard;
 
 public class SelectMostCommon implements Strategy {
     public int getSelectedNumber(Map<Integer, Integer> valueMap, Scoreboard scoreboard) {

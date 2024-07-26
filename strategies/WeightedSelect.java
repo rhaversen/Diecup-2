@@ -1,6 +1,10 @@
+package strategies;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import diecup.Scoreboard;
+import diecup.Statistics;
 
 public class WeightedSelect implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();

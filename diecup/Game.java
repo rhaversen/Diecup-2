@@ -1,3 +1,4 @@
+package diecup;
 // Game Rules:
 // 1. The player has a scoreboard with numbers 1 to 12. To win, each number must be rolled 5 times.
 // 2. The player rolls 5 dice. If the sum of any two dice matches a number on the scoreboard, the player can select those two dice and add 1 point to the corresponding number on the scoreboard.
@@ -10,6 +11,8 @@
 // 7. The players final score will be how many turns it took to get all numbers 5 times.
 
 import java.util.Arrays;
+
+import strategies.Strategy;
 
 public class Game {
     private Strategy strategy;

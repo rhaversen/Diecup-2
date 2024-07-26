@@ -1,7 +1,10 @@
+package strategies;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import diecup.Scoreboard;
 
 public class SelectHighest implements Strategy {
     public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {

@@ -1,3 +1,4 @@
+package diecup;
 import java.util.Random;
 
 public class Die {
