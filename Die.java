@@ -8,6 +8,7 @@ public class Die {
     public Die(int sides) {
         this.sides = sides;
         this.faceValue = 1;
+        roll();
     }
     
     public void roll() {
