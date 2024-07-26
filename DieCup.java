@@ -5,6 +5,7 @@ public class DieCup {
     private Die[] dieList;
     private int numberOfDice;
     private int sides;
+    private Map<Integer, Integer> valuesMap;
 
     public DieCup(int numberOfDice, int sides) {
         dieList = new Die[numberOfDice];
@@ -13,6 +14,7 @@ public class DieCup {
         }
         this.numberOfDice = numberOfDice;
         this.sides = sides;
+        generateValuesMap();
     }
 
     public void roll() {
@@ -34,6 +36,10 @@ public class DieCup {
     }
 
     public Map<Integer, Integer> getValuesMap() {
+        return valuesMap;
+    }
+
+    private void generateValuesMap() {
         Map<Integer, Integer> singleDieValuesMap = new HashMap<>();
         Map<Integer, Integer> pairDieValuesMap = new HashMap<>();
 
@@ -81,7 +87,7 @@ public class DieCup {
             }
         }
 
-        return valuesMap;
+        this.valuesMap = valuesMap;
     }
 
     private int countSumPairs(Die[] dieList, int target) {
