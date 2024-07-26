@@ -13,12 +13,6 @@ public class DieCup {
         generateValuesMap();
     }
 
-    public void roll() {
-        for (Die die : dieList) {
-            die.roll();
-        }
-    }
-
     public int[] getDiceValues() {
         int[] dice = new int[dieList.length];
         for (int i = 0; i < dieList.length; i++) {
