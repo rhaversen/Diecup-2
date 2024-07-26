@@ -11,14 +11,12 @@
 
 public class Game {
     private StrategyInterface strategy;
-    private DieCup dieCup;
     private Scoreboard scoreboard;
     private int turns;
     private int defaultNumberOfDice;
     private int defaultSides;
 
     public Game(int numberOfDice, int sides, StrategyInterface strategy) {
-        dieCup = new DieCup(numberOfDice, sides);
         scoreboard = new Scoreboard();
         turns = 0;
         this.strategy = strategy;
