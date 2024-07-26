@@ -12,9 +12,7 @@ public class SelectHighest implements StrategyInterface {
                 values.remove(scoreboardKey);
             }
         }
-        int highestNumber = highestCommonNumber(values.keySet(), scoreboardKeys);
-        System.out.println("Highest number: " + highestNumber);
-        return highestNumber;
+        return highestCommonNumber(values.keySet(), scoreboardKeys);
     }
 
     public static int highestCommonNumber(Set<Integer> set1, Set<Integer> set2) {
