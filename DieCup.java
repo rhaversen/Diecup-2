@@ -3,12 +3,16 @@ import java.util.Map;
 
 public class DieCup {
     private Die[] dieList;
+    private int numberOfDice;
+    private int sides;
 
     public DieCup(int numberOfDice, int sides) {
         dieList = new Die[numberOfDice];
         for (int i = 0; i < numberOfDice; i++) {
             dieList[i] = new Die(sides);
         }
+        this.numberOfDice = numberOfDice;
+        this.sides = sides;
     }
 
     public void roll() {
