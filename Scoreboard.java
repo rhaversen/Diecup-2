@@ -26,12 +26,12 @@ public class Scoreboard {
         return true;
     }
 
-    public void set(int number, int points) {
-        this.points.put(number, this.points.get(number) + points);
+    public void setPoints(int number, int points) {
+        this.points.put(number, points);
     }
 
-    public int getPointsForValue(int number) {
-        return points.get(number);
+    public int getPoints(int number) {
+        return points.getOrDefault(number, 0);
     }
 
     public Map<Integer, Integer> getPoints() {
