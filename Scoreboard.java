@@ -6,6 +6,7 @@ public class Scoreboard {
     public Scoreboard(int maxNumber) {
         // Initialize the scoreboard with all numbers from 1 to 12
         // and set the value to 0
+        this.points = new HashMap<>();
         for (int i = 1; i <= maxNumber; i++) {
             this.points.put(i, 0);
         }
