@@ -9,6 +9,8 @@
 // 7. if the player gets the same 7-12 number three times in a row, all die go back into the cup and the player can start again with 5 dice and a different or same number on the scoreboard.
 // 7. The players final score will be how many turns it took to get all numbers 5 times.
 
+import java.util.Arrays;
+
 public class Game {
     private StrategyInterface strategy;
     private Scoreboard scoreboard;
@@ -24,7 +26,85 @@ public class Game {
         defaultSides = sides;
     }
 
+    public void startGame() {
+        turns = 0;
+        while (!scoreboard.isFull()) {
+            turns++;
+            playTurn();
+        }
+    }
+
+    public void playTurn() {
+        System.out.println("Turn: " + turns);
+
+        DieCup dieCup = new DieCup(defaultNumberOfDice, defaultSides);
+
+        int selectedNumber = strategy.getSelectedNumber(dieCup.getValuesMap(), scoreboard);
+
+        collectPoints(dieCup, selectedNumber);
+    }
+
+    public void collectPoints(DieCup dieCup, int selectedNumber) {
+        // Keep removing dice until no more dice can be removed, adding points to the
+        // scoreboard meanwhile.
+        // If all dice can be collected, or the scoreboard reaches 5 for the given
+        // number, play another turn.
+        if (selectedNumber == -1) {
+            System.out.println("No number selected");
+            return;
+        }
+
+        boolean canMakeNumber = dieCup.getValuesMap().containsKey(selectedNumber);
+
+        if (!canMakeNumber) {
+            System.out.println("No dice can make " + selectedNumber);
+            return;
+        }
+
+        int points = dieCup.getValuesMap().getOrDefault(selectedNumber, 0);
+        scoreboard.addPoints(selectedNumber, points);
+
+        int amountOfDiceToRemove = calculateDiceToRemove(selectedNumber, points);
+        int diceRemainingAfterCollection = dieCup.getAmountOfDice() - amountOfDiceToRemove;
+
+        boolean allDiceCollected = diceRemainingAfterCollection <= 0;
+        boolean fullPointsReached = scoreboard.getPoints(selectedNumber) >= 5;
+
+        System.out.println("Scoreboard: " + scoreboard.getPoints().toString());
+        System.out.println("Dice: " + Arrays.toString(dieCup.getDiceValues()));
+        System.out.println("Values Map: " + dieCup.getValuesMap().toString());
+        System.out.println("Selected Number: " + selectedNumber);
+        System.out.println("Can make number: " + canMakeNumber);
+        System.out.println("All dice collected: " + allDiceCollected);
+        System.out.println("Full points reached: " + fullPointsReached);
+        System.out.println("Points: " + points);
+        System.out.println("Amount of dice to remove: " + amountOfDiceToRemove);
+        System.out.println("Dice remaining after collection: " + diceRemainingAfterCollection);
+
+        if (allDiceCollected || fullPointsReached) {
+            // Start a new turn without incrementing turns as this is a free turn
+            playTurn();
+        } else {
+            // Recursively collect points until no more dice can be removed
+            DieCup newDieCup = new DieCup(diceRemainingAfterCollection, defaultSides);
+            collectPoints(newDieCup, selectedNumber);
+        }
+    }
+
     public int getTurns() {
         return this.turns;
+    }
+
+    private int calculateDiceToRemove(int selectedNumber, int points) {
+        // The amount of dice to remove per point
+        int dicePerPoint = 0;
+        if (selectedNumber <= 6) {
+            dicePerPoint = 1;
+        } else {
+            dicePerPoint = 2;
+        }
+
+        // The amount of dice to remove
+        return points * dicePerPoint;
     }
 }
