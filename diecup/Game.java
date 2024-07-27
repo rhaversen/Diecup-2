@@ -21,20 +21,24 @@ public class Game {
     private int turns;
     private int defaultNumberOfDice;
     private int defaultSides;
+    private boolean waitForUserInput;
     private Logger logger;
 
-    public Game(int numberOfDice, int sides, Strategy strategy, boolean verbose) {
+    public Game(int numberOfDice, int sides, Strategy strategy, boolean waitForUserInput, boolean verbose) {
         scoreboard = new Scoreboard();
         turns = 0;
         this.strategy = strategy;
         defaultNumberOfDice = numberOfDice;
         defaultSides = sides;
+        this.waitForUserInput = waitForUserInput;
         logger = new Logger(verbose);
     }
 
     public void waitForUser() {
-        Scanner scanner = new Scanner(System.in);
-        scanner.nextLine();
+        if (waitForUserInput) {
+            Scanner scanner = new Scanner(System.in);
+            scanner.nextLine();
+        }
     }
 
     public void startGame() {
