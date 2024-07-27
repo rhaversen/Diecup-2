@@ -21,13 +21,15 @@ public class Game {
     private int turns;
     private int defaultNumberOfDice;
     private int defaultSides;
+    private Logger logger;
 
-    public Game(int numberOfDice, int sides, Strategy strategy) {
+    public Game(int numberOfDice, int sides, Strategy strategy, boolean verbose) {
         scoreboard = new Scoreboard();
         turns = 0;
         this.strategy = strategy;
         defaultNumberOfDice = numberOfDice;
         defaultSides = sides;
+        logger = new Logger(verbose);
     }
 
     public void waitForUser() {
@@ -40,9 +42,7 @@ public class Game {
         Scanner scanner = new Scanner(System.in);
         while (!scoreboard.isFull()) {
             turns++;
-            System.out.println();
-            System.out.println();
-            System.out.println("Runde " + turns);
+            logger.info("Runde " + turns, 2);
             waitForUser();
 
             playTurn();
@@ -53,64 +53,56 @@ public class Game {
     public void playTurn() {
         DieCup dieCup = new DieCup(defaultNumberOfDice, defaultSides);
         int selectedNumber = strategy.getSelectedNumber(dieCup.getValuesMap(), scoreboard);
-        System.out.println("Valgt nummer: " + selectedNumber);
+        logger.info("Valgt nummer: " + selectedNumber);
         collectPoints(dieCup, selectedNumber);
     }
 
     public void collectPoints(DieCup dieCup, int selectedNumber) {
 
-        System.out.println();
-        System.out.println("Terninger: " + Arrays.toString(dieCup.getDiceValues()));
+        logger.info("Terninger: " + Arrays.toString(dieCup.getDiceValues()), 1);
 
         if (selectedNumber == -1) {
-            System.out.println();
-            System.out.println("Ingen mulige numre at vælge");
+            logger.info("Ingen mulige numre at vælge", 1);
             return;
         }
 
         boolean canMakeNumber = dieCup.getValuesMap().containsKey(selectedNumber);
 
         if (!canMakeNumber) {
-            System.out.println();
-            System.out.println("Kan ikke lave " + selectedNumber);
+            logger.info("Kan ikke lave " + selectedNumber, 1);
             return;
         }
 
         int points = dieCup.getValuesMap().getOrDefault(selectedNumber, 0);
         scoreboard.addPoints(selectedNumber, points);
 
-        System.out.println("Score: " + scoreboard.getPoints().toString());
+        logger.info("Score: " + scoreboard.getPoints().toString());
 
         int amountOfDiceToRemove = calculateDiceToRemove(selectedNumber, points);
         int diceRemainingAfterCollection = dieCup.getAmountOfDice() - amountOfDiceToRemove;
 
-        System.out.println();
-        System.out.println("Fjerner " + amountOfDiceToRemove + " terninger");
-        System.out.println("Terninger tilbage: " + diceRemainingAfterCollection);
+        logger.info("Fjerner " + amountOfDiceToRemove + " terninger", 1);
+        logger.info("Terninger tilbage: " + diceRemainingAfterCollection);
 
         boolean allDiceCollected = diceRemainingAfterCollection <= 0;
         boolean fullPointsReached = scoreboard.getPoints(selectedNumber) >= 5;
         boolean playFreeTurn = allDiceCollected || fullPointsReached;
 
         if (allDiceCollected) {
-            System.out.println();
-            System.out.println("Alle terninger er fjernet");
+            logger.info("Alle terninger er fjernet", 1);
         }
 
         if (fullPointsReached) {
-            System.out.println();
-            System.out.println("Fuldt antal point er nået for " + selectedNumber);
+            logger.info("Fuldt antal point er nået for " + selectedNumber, 1);
         }
 
         if (playFreeTurn) {
             // Start a new turn without incrementing turns as this is a free turn
-            System.out.println();
-            System.out.println("Slår igen med alle terninger");
+            logger.info("Slår igen med alle terninger", 1);
             turns--;
         } else {
             // Recursively collect points until no more dice can be removed
-            System.out.println();
-            System.out.println("Slår igen med " + diceRemainingAfterCollection + " terninger");
+            logger.info("Slår igen med " + diceRemainingAfterCollection + " terninger", 1);
             DieCup newDieCup = new DieCup(diceRemainingAfterCollection, defaultSides);
             collectPoints(newDieCup, selectedNumber);
         }
