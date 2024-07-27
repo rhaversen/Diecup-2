@@ -23,13 +23,13 @@ public class Statistics {
             Map<Integer, Integer> valuesMap = dieCup.getValuesMap();
 
             // Add the valuesMap to the result
-            for (int key : valuesMap.keySet()) {
+            for (Map.Entry<Integer, Integer> entry : valuesMap.entrySet()) {
+                int key = entry.getKey();
                 int preResult = result.getOrDefault(key, 0);
                 int newValue = valuesMap.get(key);
                 int newResult = preResult + newValue;
                 result.put(key, newResult);
             }
-
         }
 
         // Create a new map to store normalized values
