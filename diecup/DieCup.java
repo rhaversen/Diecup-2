@@ -117,4 +117,18 @@ public class DieCup {
         }
         return maxCount;
     }
+
+    public int calculateDiceToRemove(int selectedNumber, int points) {
+        // The amount of dice to remove per point
+        int dicePerPoint = 0;
+        if (selectedNumber <= 6) {
+            dicePerPoint = 1;
+        } else {
+            dicePerPoint = 2;
+        }
+
+        // The amount of dice to remove
+        return points * dicePerPoint;
+    }
+
 }

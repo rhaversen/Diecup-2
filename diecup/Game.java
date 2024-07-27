@@ -83,7 +83,7 @@ public class Game {
 
         logger.info("Score: " + scoreboard.getPoints().toString());
 
-        int amountOfDiceToRemove = calculateDiceToRemove(selectedNumber, points);
+        int amountOfDiceToRemove = dieCup.calculateDiceToRemove(selectedNumber, points);
         int diceRemainingAfterCollection = dieCup.getAmountOfDice() - amountOfDiceToRemove;
 
         logger.info("Fjerner " + amountOfDiceToRemove + " terninger", 1);
@@ -120,18 +120,5 @@ public class Game {
 
     public int getTurns() {
         return this.turns;
-    }
-
-    private int calculateDiceToRemove(int selectedNumber, int points) {
-        // The amount of dice to remove per point
-        int dicePerPoint = 0;
-        if (selectedNumber <= 6) {
-            dicePerPoint = 1;
-        } else {
-            dicePerPoint = 2;
-        }
-
-        // The amount of dice to remove
-        return points * dicePerPoint;
     }
 }
