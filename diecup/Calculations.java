@@ -13,7 +13,7 @@ import java.util.List;
 import strategies.Strategy;
 
 public class Calculations {
-    private void calculateAverageTurns(Strategy strategy) {
+    public void calculateAverageTurns(Strategy strategy) {
         int simulationCount = 10000;
         int numberOfDice = 6;
         int sides = 6;
@@ -21,7 +21,7 @@ public class Calculations {
 
         for (int i = 0; i < simulationCount; i++) {
             System.out.println("Iteration number: " + i);
-            Game game = new Game(numberOfDice, sides, strategy);
+            Game game = new Game(numberOfDice, sides, strategy, false, false);
             game.startGame();
             turns.add(game.getTurns());
         }
