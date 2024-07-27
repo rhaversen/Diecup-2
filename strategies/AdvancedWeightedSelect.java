@@ -1,5 +1,8 @@
 package strategies;
-import java.util.*;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import diecup.Scoreboard;
 import diecup.Statistics;
@@ -12,41 +15,29 @@ public class AdvancedWeightedSelect implements Strategy {
         this.generalFrequencies = statistics.getProbabilities();
     }
 
-    public int getSelectedNumber(Map<Integer, Integer> valueMap, Scoreboard scoreboard) {
-        int bestSum = -1;
-        double bestValue = -Double.MAX_VALUE;
+    public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {
+        Map<Integer, Double> scores = new HashMap<>();
 
-        for (Map.Entry<Integer, Integer> entry : valueMap.entrySet()) {
-            int sum = entry.getKey();
-            int count = entry.getValue();
-            Integer pointsOnBoard = scoreboard.getPoints().getOrDefault(sum, 0);
+        for (Map.Entry<Integer, Integer> entry : values.entrySet()) {
+            int value = entry.getKey();
+            int countInThrow = entry.getValue();
+            int pointsOnBoard = scoreboard.getPoints().getOrDefault(value, 0);
+            int remainingPointsOnBoard = 5 - pointsOnBoard;
+            
+            // Consider "wasted" dice as points which can not be collected due to amount being higher than remaining score
+            int collectablePoints = Math.min(countInThrow, remainingPointsOnBoard);
 
-            if (pointsOnBoard < 5) { // Ignore already completed sums
-                double score = evaluateScore(sum, count, pointsOnBoard, valueMap.size(), scoreboard);
-                if (score > bestValue) {
-                    bestValue = score;
-                    bestSum = sum;
+            // Only consider values that have less than 5 points on the scoreboard
+            if (pointsOnBoard < 5) {
+                Double frequency = generalFrequencies.get(value);
+                if (frequency != null) {
+                    double score = (1.0 / frequency) * collectablePoints;
+                    scores.put(value, score);
                 }
             }
         }
 
-        return bestSum;
-    }
-
-    private double evaluateScore(int sum, int count, int pointsOnBoard, int diceLeft, Scoreboard scoreboard) {
-        double completionPriority = (5 - pointsOnBoard) * 10; // More points if closer to completion
-        double frequencyScore = count * 5; // Base score influenced by how many times the sum can be achieved
-        double rarityBonus = (1.0 / generalFrequencies.getOrDefault(sum, 1.0)) * 2; // Rarer sums get a higher bonus
-
-        // Predictive roll-over potential
-        double predictiveScore = 0;
-        if (pointsOnBoard + count <= 5) {
-            predictiveScore = (count * generalFrequencies.getOrDefault(sum, 0.0)) * 5;
-        }
-
-        // Dynamic adjustment based on game stage
-        double dynamicAdjustment = diceLeft > 15 ? frequencyScore : completionPriority; // More aggressive on frequency early on
-
-        return completionPriority + frequencyScore + rarityBonus + predictiveScore + dynamicAdjustment;
+        // Select the key with the highest score, or return -1 if no valid values exist
+        return scores.isEmpty() ? -1 : Collections.max(scores.entrySet(), Map.Entry.comparingByValue()).getKey();
     }
 }

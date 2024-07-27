@@ -7,8 +7,6 @@ import java.util.Map;
 import diecup.Scoreboard;
 import diecup.Statistics;
 
-// TODO: Consider "Wasted" dice as the dice that are not used to score points. Subtract the amount of points to be achieved from the selcted number with the amount of wasted dice and use this as the valueMap for the strategy
-
 public class WeightedSelect implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();
 
