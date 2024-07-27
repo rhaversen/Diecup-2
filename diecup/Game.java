@@ -47,6 +47,7 @@ public class Game {
 
             playTurn();
         }
+        logger.info("Fuldt point på " + turns + " runder", 1);
         scanner.close();
     }
 
@@ -94,6 +95,11 @@ public class Game {
 
         if (fullPointsReached) {
             logger.info("Fuldt antal point er nået for " + selectedNumber, 1);
+        }
+
+        if (scoreboard.isFull()) {
+            logger.info("Færdig!", 2);
+            return;
         }
 
         if (playFreeTurn) {
