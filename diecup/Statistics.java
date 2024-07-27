@@ -7,19 +7,19 @@ public class Statistics {
     Map<Integer, Double> probabilities;
 
     public Statistics(int numberOfDice, int sides) {
-        calculateProbabilities();
+        calculateProbabilities(numberOfDice, sides);
     }
 
     public Map<Integer, Double> getProbabilities() {
         return probabilities;
     }
 
-    private void calculateProbabilities() {
+    private void calculateProbabilities(int numberOfDice, int sides) {
         int iterations = 10000;
         Map<Integer, Integer> result = new HashMap<>();
 
         for (int i = 0; i < iterations; i++) {
-            DieCup dieCup = new DieCup(6, 6);
+            DieCup dieCup = new DieCup(numberOfDice, sides);
             Map<Integer, Integer> valuesMap = dieCup.getValuesMap();
 
             // Add the valuesMap to the result
