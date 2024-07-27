@@ -23,10 +23,10 @@ public class WeightedSelect implements Strategy {
         for (Map.Entry<Integer, Integer> entry : values.entrySet()) {
             int value = entry.getKey();
             int countInThrow = entry.getValue();
-            Integer pointsOnBoard = scoreboard.getPoints().get(value);
+            int pointsOnBoard = scoreboard.getPoints().getOrDefault(value, 0);
 
             // Only consider values that have less than 5 points on the scoreboard
-            if (pointsOnBoard == null || pointsOnBoard < 5) {
+            if (pointsOnBoard < 5) {
                 Double frequency = generalFrequencies.get(value);
                 if (frequency != null) {
                     double score = (1.0 / frequency) * countInThrow;
