@@ -1,5 +1,6 @@
 package diecup;
 // Game Rules:
+
 // 1. The player has a scoreboard with numbers 1 to 12. To win, each number must be rolled 5 times.
 // 2. The player rolls 5 dice. If the sum of any two dice matches a number on the scoreboard, the player can select those two dice and add 1 point to the corresponding number on the scoreboard.
 // - For numbers 1 to 6, only a single die can be selected if it matches the number directly.
@@ -10,9 +11,9 @@ package diecup;
 // 7. if the player gets the same 7-12 number three times in a row, all die go back into the cup and the player can start again with 5 dice and a different or same number on the scoreboard.
 // 7. The players final score will be how many turns it took to get all numbers 5 times.
 
-import java.util.Arrays;
-
 import strategies.Strategy;
+import java.util.Arrays;
+import java.util.Scanner;
 
 public class Game {
     private Strategy strategy;
@@ -29,51 +30,87 @@ public class Game {
         defaultSides = sides;
     }
 
+    public void waitForUser() {
+        Scanner scanner = new Scanner(System.in);
+        scanner.nextLine();
+    }
+
     public void startGame() {
         turns = 0;
+        Scanner scanner = new Scanner(System.in);
         while (!scoreboard.isFull()) {
             turns++;
+            System.out.println();
+            System.out.println();
+            System.out.println("Runde " + turns);
+            waitForUser();
+
             playTurn();
         }
+        scanner.close();
     }
 
     public void playTurn() {
         DieCup dieCup = new DieCup(defaultNumberOfDice, defaultSides);
-
         int selectedNumber = strategy.getSelectedNumber(dieCup.getValuesMap(), scoreboard);
-
+        System.out.println("Valgt nummer: " + selectedNumber);
         collectPoints(dieCup, selectedNumber);
     }
 
     public void collectPoints(DieCup dieCup, int selectedNumber) {
-        // Keep removing dice until no more dice can be removed, adding points to the
-        // scoreboard meanwhile.
-        // If all dice can be collected, or the scoreboard reaches 5 for the given
-        // number, play another turn.
+
+        System.out.println();
+        System.out.println("Terninger: " + Arrays.toString(dieCup.getDiceValues()));
+
         if (selectedNumber == -1) {
+            System.out.println();
+            System.out.println("Ingen mulige numre at vælge");
             return;
         }
 
         boolean canMakeNumber = dieCup.getValuesMap().containsKey(selectedNumber);
 
         if (!canMakeNumber) {
+            System.out.println();
+            System.out.println("Kan ikke lave " + selectedNumber);
             return;
         }
 
         int points = dieCup.getValuesMap().getOrDefault(selectedNumber, 0);
         scoreboard.addPoints(selectedNumber, points);
 
+        System.out.println("Score: " + scoreboard.getPoints().toString());
+
         int amountOfDiceToRemove = calculateDiceToRemove(selectedNumber, points);
         int diceRemainingAfterCollection = dieCup.getAmountOfDice() - amountOfDiceToRemove;
 
+        System.out.println();
+        System.out.println("Fjerner " + amountOfDiceToRemove + " terninger");
+        System.out.println("Terninger tilbage: " + diceRemainingAfterCollection);
+
         boolean allDiceCollected = diceRemainingAfterCollection <= 0;
         boolean fullPointsReached = scoreboard.getPoints(selectedNumber) >= 5;
+        boolean playFreeTurn = allDiceCollected || fullPointsReached;
 
-        if (allDiceCollected || fullPointsReached) {
+        if (allDiceCollected) {
+            System.out.println();
+            System.out.println("Alle terninger er fjernet");
+        }
+
+        if (fullPointsReached) {
+            System.out.println();
+            System.out.println("Fuldt antal point er nået for " + selectedNumber);
+        }
+
+        if (playFreeTurn) {
             // Start a new turn without incrementing turns as this is a free turn
-            playTurn();
+            System.out.println();
+            System.out.println("Slår igen med alle terninger");
+            turns--;
         } else {
             // Recursively collect points until no more dice can be removed
+            System.out.println();
+            System.out.println("Slår igen med " + diceRemainingAfterCollection + " terninger");
             DieCup newDieCup = new DieCup(diceRemainingAfterCollection, defaultSides);
             collectPoints(newDieCup, selectedNumber);
         }
