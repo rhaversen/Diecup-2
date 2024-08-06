@@ -45,7 +45,7 @@ public class DieCup {
             // The second die should be greater than the first die
             for (int j = i + 1; j < dieList.length; j++) {
 
-                // Create new dielist of none selcted dice
+                // Create new dielist of non-selcted dice
                 Die[] newDieList = new Die[dieList.length - 2];
                 int index = 0;
                 for (int k = 0; k < dieList.length; k++) {
