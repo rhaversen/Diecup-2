@@ -4,7 +4,9 @@ import strategies.*;
 
 public class Main {
     public static void main(String[] args) {
-        if ("start".equals(args[0])) {
+        if (args.length == 0) {
+            startGame();
+        } else if ("start".equals(args[0])) {
             startGame();
         } else if ("statistics".equals(args[0])) {
             getStatistics();
@@ -25,4 +27,3 @@ public class Main {
         game.startGame();
     }
 }
-
