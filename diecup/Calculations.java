@@ -13,14 +13,35 @@ import java.util.List;
 import strategies.Strategy;
 
 public class Calculations {
+    private Logger logger = new Logger(true);
+    
     public void calculateAverageTurns(Strategy strategy) {
         int simulationCount = 10000;
         int numberOfDice = 6;
         int sides = 6;
         List<Integer> turns = new ArrayList<>();
 
+        long startTime = System.currentTimeMillis();
+        long lastProgressUpdate = startTime;
+
+        logger.log("Starting simulation with " + simulationCount + " iterations using " + strategy.getClass().getSimpleName());
+
         for (int i = 0; i < simulationCount; i++) {
-            System.out.println("Iteration number: " + i);
+            long currentTime = System.currentTimeMillis();
+            
+            // Show progress every 500ms
+            if (currentTime - lastProgressUpdate >= 500 && i > 0) {
+                long elapsedTime = currentTime - startTime;
+                double avgTimePerSimulation = (double) elapsedTime / i;
+                long remainingSimulations = simulationCount - i;
+                long estimatedTimeRemaining = (long) (remainingSimulations * avgTimePerSimulation);
+                
+                String progressMsg = String.format("Progress: %d/%d (%.1f%%) - ETA: %d seconds", 
+                    i, simulationCount, (100.0 * i / simulationCount), estimatedTimeRemaining / 1000);
+                logger.log(progressMsg);
+                lastProgressUpdate = currentTime;
+            }
+            
             Game game = new Game(numberOfDice, sides, strategy, false, false);
             game.startGame();
             turns.add(game.getTurns());
@@ -51,7 +72,8 @@ public class Calculations {
 
         // Print average turns
         double averageTurns = turns.stream().mapToInt(Integer::intValue).average().orElse(0);
-        System.out.println("Average turns: " + averageTurns);
+        logger.log("Simulation completed!");
+        logger.log("Average turns: " + averageTurns);
     }
 
 }
