@@ -1,6 +1,8 @@
 import diecup.Calculations;
 import diecup.Game;
 import strategies.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
@@ -17,7 +19,29 @@ public class Main {
         int numberOfDice = 6;
         int sides = 6;
         Calculations calculations = new Calculations();
-        calculations.calculateAverageTurns(new AdvancedWeightedSelect(numberOfDice, sides));
+
+        List<Strategy> strategies = getAllStrategies(numberOfDice, sides);
+
+        System.out.println("Running statistics for " + strategies.size() + " strategies...");
+
+        for (Strategy strategy : strategies) {
+            System.out.println("\nCalculating statistics for: " + strategy.getClass().getSimpleName());
+            calculations.calculateAverageTurns(strategy);
+        }
+
+        System.out.println("\nAll statistics calculated! Check the simulation_results folder for output files.");
+    }
+
+    private static List<Strategy> getAllStrategies(int numberOfDice, int sides) {
+        List<Strategy> strategies = new ArrayList<>();
+
+        strategies.add(new AdvancedWeightedSelect(numberOfDice, sides));
+        strategies.add(new WeightedSelect(numberOfDice, sides));
+        strategies.add(new SelectHighest());
+        strategies.add(new SelectMostCommon());
+        strategies.add(new ProbabilisticSelect(numberOfDice, sides, 0.7));
+
+        return strategies;
     }
 
     public static void startGame() {
