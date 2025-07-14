@@ -5,7 +5,7 @@ Win by collecting 5 points for each number (1-12) on the scoreboard. The final s
 ### Setup
 
 - Scoreboard contains numbers 1 through 12, each requiring 5 points to complete
-- Start each turn with 5 dice
+- Start each turn with 6 dice
 
 ### Turn Mechanics
 
