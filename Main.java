@@ -44,7 +44,7 @@ public class Main {
         strategies.add(new FocusedSelect(numberOfDice, sides, statistics));
         strategies.add(new SelectHighest());
         strategies.add(new SelectMostCommon());
-        strategies.add(new ProbabilisticSelect(numberOfDice, sides, 0.7, statistics));
+        strategies.add(new ProbabilisticSelect(numberOfDice, sides, 1.76, statistics));
 
         return strategies;
     }
