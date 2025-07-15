@@ -1,5 +1,6 @@
 import diecup.Calculations;
 import diecup.Game;
+import diecup.Statistics;
 import strategies.*;
 import java.util.ArrayList;
 import java.util.List;
