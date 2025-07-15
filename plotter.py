@@ -13,7 +13,14 @@ strategy_data = defaultdict(list)
 strategy_files = defaultdict(list)
 for filename in os.listdir(results_dir):
     if filename.endswith(".txt"):
-        strategy_name = filename.split('_')[0]
+        # Split filename and remove timestamp (last two parts: YYYYMMDD and HHMMSS.txt)
+        parts = filename.split('_')
+        if len(parts) >= 3:
+            # Strategy name is everything except the last two parts (date and time)
+            strategy_name = '_'.join(parts[:-2])
+        else:
+            # Fallback for files with different naming convention
+            strategy_name = parts[0]
         strategy_files[strategy_name].append(filename)
 
 # For each strategy, use the most recent file

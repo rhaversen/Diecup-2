@@ -56,7 +56,20 @@ public class Calculations {
         }
 
         // Generate filename based on strategy and timestamp
-        String strategyName = strategy.getClass().getSimpleName();
+        String strategyName;
+        try {
+            String toStringResult = strategy.toString();
+            // Check if toString() returns a custom name or just the default Object.toString()
+            if (toStringResult.contains("@")) {
+                // Default Object.toString() format, use class name instead
+                strategyName = strategy.getClass().getSimpleName();
+            } else {
+                strategyName = toStringResult;
+            }
+        } catch (Exception e) {
+            // Fallback to class name if toString() fails
+            strategyName = strategy.getClass().getSimpleName();
+        }
         String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
         String filename = String.format("%s/%s_%s.txt", outputDir, strategyName, dateTime);
 
