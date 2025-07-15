@@ -32,14 +32,14 @@ public class Main {
         System.out.println("\nAll statistics calculated! Check the simulation_results folder for output files.");
     }
 
-    private static List<Strategy> getAllStrategies(int numberOfDice, int sides) {
+    private static List<Strategy> getAllStrategies(int numberOfDice, int sides, Statistics statistics) {
         List<Strategy> strategies = new ArrayList<>();
 
-        strategies.add(new AdvancedWeightedSelect(numberOfDice, sides));
-        strategies.add(new WeightedSelect(numberOfDice, sides));
+        strategies.add(new AdvancedWeightedSelect(numberOfDice, sides, statistics));
+        strategies.add(new WeightedSelect(numberOfDice, sides, statistics));
         strategies.add(new SelectHighest());
         strategies.add(new SelectMostCommon());
-        strategies.add(new ProbabilisticSelect(numberOfDice, sides, 0.7));
+        strategies.add(new ProbabilisticSelect(numberOfDice, sides, 0.7, statistics));
 
         return strategies;
     }
@@ -47,7 +47,8 @@ public class Main {
     public static void startGame() {
         int numberOfDice = 6;
         int sides = 6;
-        Game game = new Game(numberOfDice, sides, new AdvancedWeightedSelect(numberOfDice, sides), true, true);
+        Statistics statistics = new Statistics(numberOfDice, sides);
+        Game game = new Game(numberOfDice, sides, new AdvancedWeightedSelect(numberOfDice, sides, statistics), true, true);
         game.startGame();
     }
 }

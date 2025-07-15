@@ -10,8 +10,7 @@ import diecup.Statistics;
 public class WeightedSelect implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();
 
-    public WeightedSelect(int numberOfDice, int sides) {
-        Statistics statistics = new Statistics(numberOfDice, sides);
+    public WeightedSelect(int numberOfDice, int sides, Statistics statistics) {
         this.generalFrequencies = statistics.getProbabilities();
     }
 
