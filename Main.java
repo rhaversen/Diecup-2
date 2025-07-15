@@ -40,8 +40,8 @@ public class Main {
     private static List<Strategy> getAllStrategies(int numberOfDice, int sides, Statistics statistics) {
         List<Strategy> strategies = new ArrayList<>();
 
-        strategies.add(new AdvancedWeightedSelect(numberOfDice, sides, statistics));
         strategies.add(new WeightedSelect(numberOfDice, sides, statistics));
+        strategies.add(new FocusedSelect(numberOfDice, sides, statistics));
         strategies.add(new SelectHighest());
         strategies.add(new SelectMostCommon());
         strategies.add(new ProbabilisticSelect(numberOfDice, sides, 0.7, statistics));
@@ -53,7 +53,7 @@ public class Main {
         int numberOfDice = 6;
         int sides = 6;
         Statistics statistics = new Statistics(numberOfDice, sides);
-        Game game = new Game(numberOfDice, sides, new AdvancedWeightedSelect(numberOfDice, sides, statistics), true, true);
+        Game game = new Game(numberOfDice, sides, new WeightedSelect(numberOfDice, sides, statistics), true, true);
         game.startGame();
     }
 }
