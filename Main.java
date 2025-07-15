@@ -20,7 +20,11 @@ public class Main {
         int sides = 6;
         Calculations calculations = new Calculations();
 
-        List<Strategy> strategies = getAllStrategies(numberOfDice, sides);
+        System.out.println("Creating Statistics object...");
+        Statistics statistics = new Statistics(numberOfDice, sides);
+        System.out.println("Statistics object created successfully!");
+
+        List<Strategy> strategies = getAllStrategies(numberOfDice, sides, statistics);
 
         System.out.println("Running statistics for " + strategies.size() + " strategies...");
 
