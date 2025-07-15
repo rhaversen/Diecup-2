@@ -18,7 +18,7 @@ public class Scoreboard {
         this(12);
     }
     
-    public boolean isFull() {
+    public boolean isComplete() {
         for (int value : this.points.values()) {
             if (value < 5) {
                 return false;

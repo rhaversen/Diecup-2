@@ -8,17 +8,17 @@ public class Game {
     private Strategy strategy;
     private Scoreboard scoreboard;
     private int turns;
-    private int defaultNumberOfDice;
-    private int defaultSides;
+    private int numberOfDice;
+    private int sidesPerDie;
     private boolean waitForUserInput;
     private Logger logger;
 
-    public Game(int numberOfDice, int sides, Strategy strategy, boolean waitForUserInput, boolean verbose) {
+    public Game(int numberOfDice, int sidesPerDie, Strategy strategy, boolean waitForUserInput, boolean verbose) {
         scoreboard = new Scoreboard();
         turns = 0;
         this.strategy = strategy;
-        defaultNumberOfDice = numberOfDice;
-        defaultSides = sides;
+        this.numberOfDice = numberOfDice;
+        this.sidesPerDie = sidesPerDie;
         this.waitForUserInput = waitForUserInput;
         logger = new Logger(verbose);
     }
@@ -34,7 +34,7 @@ public class Game {
     public void startGame() {
         turns = 0;
         Scanner scanner = new Scanner(System.in);
-        while (!scoreboard.isFull()) {
+        while (!scoreboard.isComplete()) {
             turns++;
             logger.info("Runde " + turns, 2);
             waitForUser();
@@ -46,7 +46,7 @@ public class Game {
     }
 
     public void playTurn() {
-        DieCup dieCup = new DieCup(defaultNumberOfDice, defaultSides);
+        DieCup dieCup = new DieCup(numberOfDice, sidesPerDie);
         int selectedNumber = strategy.getSelectedNumber(dieCup.getValuesMap(), scoreboard);
         logger.info("Valgt nummer: " + selectedNumber);
         collectPoints(dieCup, selectedNumber);
@@ -91,7 +91,7 @@ public class Game {
             logger.info("Fuldt antal point er nået for " + selectedNumber, 1);
         }
 
-        if (scoreboard.isFull()) {
+        if (scoreboard.isComplete()) {
             logger.info("Færdig!", 2);
             return;
         }
@@ -103,7 +103,7 @@ public class Game {
         } else {
             // Recursively collect points until no more dice can be removed
             logger.info("Slår igen med " + diceRemainingAfterCollection + " terninger", 1);
-            DieCup newDieCup = new DieCup(diceRemainingAfterCollection, defaultSides);
+            DieCup newDieCup = new DieCup(diceRemainingAfterCollection, sidesPerDie);
             collectPoints(newDieCup, selectedNumber);
         }
     }
