@@ -25,6 +25,7 @@ public class Game {
 
     public void waitForUser() {
         if (waitForUserInput) {
+            @SuppressWarnings("resource")
             Scanner scanner = new Scanner(System.in);
             scanner.nextLine();
         }
