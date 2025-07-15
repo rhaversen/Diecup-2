@@ -49,4 +49,11 @@ public class Scoreboard {
         }
     }
 
+    public Scoreboard copy() {
+        Scoreboard newBoard = new Scoreboard();
+        for (Map.Entry<Integer, Integer> entry : this.points.entrySet()) {
+            newBoard.setPoints(entry.getKey(), entry.getValue());
+        }
+        return newBoard;
+    }
 }
