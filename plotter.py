@@ -144,16 +144,16 @@ ax3.set_title('Performance Statistics', fontsize=12, fontweight='bold')
 
 # Prepare table data
 table_data = []
-headers = ['Strategy', 'Avg', 'Med', 'Std', 'Q1', 'Q3', 'Min', 'Max', 'Runs']
+headers = ['Strategy', 'Avg', 'Med', 'Q3', 'Std', 'Q1', 'Min', 'Max', 'Runs']
 
 for stat in stats_summary:
     row = [
-        stat['strategy'][:12] + '...' if len(stat['strategy']) > 12 else stat['strategy'],
+        stat['strategy'][:15] + '...' if len(stat['strategy']) > 15 else stat['strategy'],
         f"{stat['avg']:.1f}",
         f"{stat['median']:.1f}",
+        f"{stat['q3']:.1f}",
         f"{stat['std']:.1f}",
         f"{stat['q1']:.1f}",
-        f"{stat['q3']:.1f}",
         f"{stat['min']}",
         f"{stat['max']}",
         f"{stat['count']}"
@@ -177,13 +177,13 @@ plt.tight_layout()
 plt.subplots_adjust(right=0.85)
 
 # Print summary to console
-print("\n" + "="*60)
+print("\n" + "="*80)
 print("STRATEGY PERFORMANCE SUMMARY")
-print("="*60)
-print(f"{'Strategy':<20} {'Avg':<6} {'Med':<6} {'Std':<6} {'Runs':<6}")
-print("-"*60)
+print("="*80)
+print(f"{'Strategy':<25} {'Avg':<6} {'Med':<6} {'Q3':<6} {'Std':<6} {'Runs':<6}")
+print("-"*80)
 for stat in stats_summary:
-    print(f"{stat['strategy']:<20} {stat['avg']:<6.1f} {stat['median']:<6.1f} {stat['std']:<6.1f} {stat['count']:<6}")
-print("="*60)
+    print(f"{stat['strategy']:<25} {stat['avg']:<6.1f} {stat['median']:<6.1f} {stat['q3']:<6.1f} {stat['std']:<6.1f} {stat['count']:<6}")
+print("="*80)
 
 plt.show()
