@@ -7,10 +7,10 @@ import java.util.Map;
 import diecup.Scoreboard;
 import diecup.Statistics;
 
-public class WeightedSelect implements Strategy {
+public class ImprovedWeightedSelect implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();
 
-    public WeightedSelect(Statistics statistics) {
+    public ImprovedWeightedSelect(Statistics statistics) {
         this.generalFrequencies = statistics.getProbabilities();
     }
 
@@ -28,11 +28,12 @@ public class WeightedSelect implements Strategy {
 
             // Only consider values that have less than 5 points on the scoreboard
             if (pointsOnBoard < 5) {
-                // Calculate the score based on the frequency of the value and the collectable points
                 Double frequency = generalFrequencies.get(value);
                 if (frequency != null) {
-                    // Score is inversely proportional to frequency, multiplied by collectable points
-                    double score = (1.0 / frequency) * collectablePoints;
+                    double rarity = 1.0 / frequency;
+                    double expectedFuture = remainingPointsOnBoard * frequency;
+                    double bonus = rarity / (expectedFuture + 1.0);
+                    double score = rarity * collectablePoints + bonus;
                     scores.put(value, score);
                 }
             }

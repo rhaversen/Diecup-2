@@ -3,7 +3,7 @@ import java.util.Map;
 
 import diecup.Scoreboard;
 
-public class SelectMostCommon implements Strategy {
+public class SelectMostFrequent implements Strategy {
     public int getSelectedNumber(Map<Integer, Integer> valueMap, Scoreboard scoreboard) {
         int bestSum = -1;
         int maxCount = 0; // Track the highest count found in valueMap

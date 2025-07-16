@@ -8,7 +8,8 @@ import java.util.List;
 public class Main {
     public static void main(String[] args) {
         if (args.length == 0) {
-            startGame();
+            getStatistics();
+            // startGame();
         } else if ("start".equals(args[0])) {
             startGame();
         } else if ("statistics".equals(args[0])) {
@@ -40,11 +41,11 @@ public class Main {
     private static List<Strategy> getAllStrategies(int numberOfDice, int sides, Statistics statistics) {
         List<Strategy> strategies = new ArrayList<>();
 
-        strategies.add(new WeightedSelect(numberOfDice, sides, statistics));
-        strategies.add(new FocusedSelect(numberOfDice, sides, statistics));
+        strategies.add(new ImprovedWeightedSelect(statistics));
+        strategies.add(new WeightedSelect(statistics));
         strategies.add(new SelectHighest());
-        strategies.add(new SelectMostCommon());
-        strategies.add(new ProbabilisticSelect(numberOfDice, sides, 1.76, statistics));
+        strategies.add(new SelectMostFrequent());
+        strategies.add(new SelectRarest(statistics));
 
         return strategies;
     }
@@ -53,7 +54,7 @@ public class Main {
         int numberOfDice = 6;
         int sides = 6;
         Statistics statistics = new Statistics(numberOfDice, sides);
-        Game game = new Game(numberOfDice, sides, new WeightedSelect(numberOfDice, sides, statistics), true, true);
+        Game game = new Game(numberOfDice, sides, new WeightedSelect(statistics), true, true);
         game.startGame();
     }
 }
