@@ -17,6 +17,12 @@ public class ParameterTuner {
     private static final double MUTATION_RATE = 0.8;
     private static final double MUTATION_STRENGTH = 0.1;
     private static final Random random = new Random();
+    
+    // define how many weights—and names if you like
+    private static final int WEIGHT_COUNT = 3;
+    private static final String[] WEIGHT_NAMES = {
+        "UrgencyWeight", "FutureWeight", "RarityWeight"
+    };
 
     public static void main(String[] args) {
         System.out.println("Starting simple parameter optimization for ImprovedWeightedSelect...");
@@ -79,11 +85,11 @@ public class ParameterTuner {
         }
 
         private ParameterSet generateRandomParameterSet() {
-            return new ParameterSet(
-                random.nextDouble() * 5.0,
-                random.nextDouble() * 5.0,
-                random.nextDouble() * 5.0
-            );
+            double[] w = new double[WEIGHT_COUNT];
+            for (int i = 0; i < WEIGHT_COUNT; i++) {
+                w[i] = random.nextDouble() * 5.0;
+            }
+            return new ParameterSet(w);
         }
 
         private void evaluatePopulation() {
@@ -110,11 +116,11 @@ public class ParameterTuner {
         }
 
         private double evaluateParameterSetSingle(ParameterSet params, int runs) {
-            ImprovedWeightedSelect strategy =
-                new ImprovedWeightedSelect(statistics,
-                    params.urgencyWeight,
-                    params.futureWeight,
-                    params.rarityWeight);
+            // unpack weights in order
+            ImprovedWeightedSelect strategy = new ImprovedWeightedSelect(
+                statistics,
+                params.weights[0], params.weights[1], params.weights[2]
+            );
             
             List<Double> results = new ArrayList<>();
             for (int run = 0; run < runs; run++) {
@@ -174,28 +180,20 @@ public class ParameterTuner {
 
         private ParameterSet crossover(ParameterSet p1, ParameterSet p2) {
             double alpha = random.nextDouble();
-            return new ParameterSet(
-                interpolate(p1.urgencyWeight, p2.urgencyWeight, alpha),
-                interpolate(p1.futureWeight,   p2.futureWeight,   alpha),
-                interpolate(p1.rarityWeight,   p2.rarityWeight,   alpha)
-            );
+            double[] childW = new double[WEIGHT_COUNT];
+            for (int i = 0; i < WEIGHT_COUNT; i++) {
+                childW[i] = p1.weights[i] + alpha * (p2.weights[i] - p1.weights[i]);
+            }
+            return new ParameterSet(childW);
         }
 
         private void mutate(ParameterSet params) {
             if (random.nextDouble() < MUTATION_RATE) {
-                params.urgencyWeight += gaussian(0, MUTATION_STRENGTH);
-                params.futureWeight  += gaussian(0, MUTATION_STRENGTH);
-                params.rarityWeight  += gaussian(0, MUTATION_STRENGTH);
+                for (int i = 0; i < WEIGHT_COUNT; i++) {
+                    params.weights[i] += random.nextGaussian() * MUTATION_STRENGTH;
+                }
                 params.q3Score = 0;
             }
-        }
-
-        private double interpolate(double a, double b, double alpha) {
-            return a + alpha * (b - a);
-        }
-
-        private double gaussian(double mean, double stdDev) {
-            return mean + stdDev * random.nextGaussian();
         }
 
         private void printProgress(int generation, long startTime, boolean improved) {
@@ -208,11 +206,12 @@ public class ParameterTuner {
                 generation, MAX_GENERATIONS, progress * 100, bestScore, 
                 formatTime(elapsed), formatTime(remaining));
                 
-            if (improved && population.size() > 0) {
+            if (improved) {
                 ParameterSet best = population.get(0);
                 System.out.println("  *** IMPROVEMENT *** Current best parameters:");
-                System.out.printf("    Urgency=%.3f, Future=%.3f, Rarity=%.3f%n",
-                    best.urgencyWeight, best.futureWeight, best.rarityWeight);
+                for (int i = 0; i < WEIGHT_COUNT; i++) {
+                    System.out.printf("    %s=%.3f%n", WEIGHT_NAMES[i], best.weights[i]);
+                }
                 System.out.println();
             }
         }
@@ -232,27 +231,24 @@ public class ParameterTuner {
         }
 
         static class ParameterSet {
-            double urgencyWeight;
-            double futureWeight;
-            double rarityWeight;
+            double[] weights;
             double q3Score = 0;
 
-            ParameterSet(double urgencyWeight, double futureWeight, double rarityWeight) {
-                this.urgencyWeight = urgencyWeight;
-                this.futureWeight  = futureWeight;
-                this.rarityWeight  = rarityWeight;
+            ParameterSet(double[] weights) {
+                this.weights = weights.clone();
             }
 
             ParameterSet copy() {
-                ParameterSet c = new ParameterSet(urgencyWeight, futureWeight, rarityWeight);
+                ParameterSet c = new ParameterSet(this.weights);
                 c.q3Score = this.q3Score;
                 return c;
             }
 
             void print() {
                 System.out.printf("Best Q3 Performance: %.4f turns%n", q3Score);
-                System.out.printf("UrgencyWeight=%.3f, FutureWeight=%.3f, RarityWeight=%.3f%n",
-                                  urgencyWeight, futureWeight, rarityWeight);
+                for (int i = 0; i < WEIGHT_COUNT; i++) {
+                    System.out.printf("  %s=%.3f%n", WEIGHT_NAMES[i], weights[i]);
+                }
             }
         }
     }
