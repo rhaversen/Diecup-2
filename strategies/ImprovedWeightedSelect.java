@@ -9,37 +9,83 @@ import diecup.Statistics;
 
 public class ImprovedWeightedSelect implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();
+    private final double urgencyWeight;
+    private final double futureWeight;
 
+    // default constructor using tuned defaults
     public ImprovedWeightedSelect(Statistics statistics) {
+        this(statistics,
+                getDefaultUrgencyWeight(),
+                getDefaultFutureWeight());
+    }
+
+    public ImprovedWeightedSelect(Statistics statistics,
+            double urgencyWeight,
+            double futureWeight) {
         this.generalFrequencies = statistics.getProbabilities();
+        this.urgencyWeight = urgencyWeight;
+        this.futureWeight = futureWeight;
     }
 
     public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {
+        int maxPoints = 5; // default max points, can be adjusted as needed
+        int totalSlots = 12; // default total slots, can be adjusted as needed
+
+        // calculate average points across all slots
+        int totalPoints = 0;
+        for (int pts : scoreboard.getPoints().values()) {
+            totalPoints += pts;
+        }
+        double averagePoints = totalPoints / (double) totalSlots;
+
+        // compute how many dice are in this roll
+        int currentDice = 0;
+        for (int cnt : values.values()) {
+            currentDice += cnt;
+        }
+
         Map<Integer, Double> scores = new HashMap<>();
 
         for (Map.Entry<Integer, Integer> entry : values.entrySet()) {
             int value = entry.getKey();
             int countInThrow = entry.getValue();
             int pointsOnBoard = scoreboard.getPoints().getOrDefault(value, 0);
-            int remainingPointsOnBoard = 5 - pointsOnBoard;
-            
-            // Consider "wasted" dice as points which can not be collected due to amount being higher than remaining score
-            int collectablePoints = Math.min(countInThrow, remainingPointsOnBoard);
+            int remaining = maxPoints - pointsOnBoard;
+            int collectable = Math.min(countInThrow, remaining);
 
-            // Only consider values that have less than 5 points on the scoreboard
-            if (pointsOnBoard < 5) {
+            if (pointsOnBoard < maxPoints) {
                 Double frequency = generalFrequencies.get(value);
                 if (frequency != null) {
-                    double rarity = 1.0 / frequency;
-                    double expectedFuture = remainingPointsOnBoard * frequency;
-                    double bonus = rarity / (expectedFuture + 1.0);
-                    double score = rarity * collectablePoints + bonus;
+                    double score = (1.0 / frequency) * collectable;
+                    // boost when many points are still missing
+                    double missingFactor = 1 + (remaining / (double) maxPoints);
+                    score *= missingFactor;
+
+                    double deficit = averagePoints - pointsOnBoard;
+                    double urgencyFactor = deficit > 0
+                            ? 1 + (deficit / maxPoints) * urgencyWeight
+                            : 1;
+                    score *= urgencyFactor;
+
+                    int diceAfter = currentDice - collectable;
+                    double futurePotential = 1 - Math.pow(1 - frequency, Math.max(diceAfter, 0));
+                    score *= 1 + futurePotential * futureWeight;
+
                     scores.put(value, score);
                 }
             }
         }
 
-        // Select the key with the highest score, or return -1 if no valid values exist
-        return scores.isEmpty() ? -1 : Collections.max(scores.entrySet(), Map.Entry.comparingByValue()).getKey();
+        return scores.isEmpty()
+                ? -1
+                : Collections.max(scores.entrySet(), Map.Entry.comparingByValue()).getKey();
+    }
+
+    private static double getDefaultUrgencyWeight() {
+        return 0.229;
+    }
+
+    private static double getDefaultFutureWeight() {
+        return 3.048;
     }
 }
