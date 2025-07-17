@@ -1,6 +1,11 @@
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.AbstractMap;
+import java.util.Map;
 
 import diecup.Statistics;
 import strategies.ImprovedWeightedSelect;
@@ -93,14 +98,35 @@ public class ParameterTuner {
         }
 
         private void evaluatePopulation() {
+            ExecutorService executor = Executors.newFixedThreadPool(
+                Runtime.getRuntime().availableProcessors()
+            );
+            List<Future<Map.Entry<ParameterSet, Double>>> futures = new ArrayList<>();
+
             for (ParameterSet params : population) {
                 if (params.q3Score == 0) {
-                    params.q3Score = evaluateParameterSetAverage(params, RUNS_PER_CONFIG, EVALUATIONS_PER_CONFIG);
-                    if (params.q3Score < bestScore) {
-                        bestScore = params.q3Score;
-                    }
+                    futures.add(executor.submit(() -> {
+                        double score = evaluateParameterSetAverage(
+                            params, RUNS_PER_CONFIG, EVALUATIONS_PER_CONFIG
+                        );
+                        return new AbstractMap.SimpleEntry<>(params, score);
+                    }));
                 }
             }
+
+            for (Future<Map.Entry<ParameterSet, Double>> future : futures) {
+                try {
+                    Map.Entry<ParameterSet, Double> entry = future.get();
+                    entry.getKey().q3Score = entry.getValue();
+                    if (entry.getValue() < bestScore) {
+                        bestScore = entry.getValue();
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            executor.shutdown();
             population.sort((a, b) -> Double.compare(a.q3Score, b.q3Score));
         }
 
