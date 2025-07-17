@@ -11,20 +11,24 @@ public class ImprovedWeightedSelect implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();
     private final double urgencyWeight;
     private final double futureWeight;
+    private final double rarityWeight;
 
     // default constructor using tuned defaults
     public ImprovedWeightedSelect(Statistics statistics) {
         this(statistics,
                 getDefaultUrgencyWeight(),
-                getDefaultFutureWeight());
+                getDefaultFutureWeight(),
+                getDefaultRarityWeight());
     }
 
     public ImprovedWeightedSelect(Statistics statistics,
             double urgencyWeight,
-            double futureWeight) {
+            double futureWeight,
+            double rarityWeight) {
         this.generalFrequencies = statistics.getProbabilities();
         this.urgencyWeight = urgencyWeight;
         this.futureWeight = futureWeight;
+        this.rarityWeight = rarityWeight;
     }
 
     public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {
@@ -56,7 +60,7 @@ public class ImprovedWeightedSelect implements Strategy {
             if (pointsOnBoard < maxPoints) {
                 Double frequency = generalFrequencies.get(value);
                 if (frequency != null) {
-                    double score = (1.0 / frequency) * collectable;
+                    double score = (1.0 / Math.pow(frequency, rarityWeight)) * collectable;
                     // boost when many points are still missing
                     double missingFactor = 1 + (remaining / (double) maxPoints);
                     score *= missingFactor;
@@ -82,10 +86,14 @@ public class ImprovedWeightedSelect implements Strategy {
     }
 
     private static double getDefaultUrgencyWeight() {
-        return 0.229;
+        return -0.426;
     }
 
     private static double getDefaultFutureWeight() {
-        return 3.048;
+        return 4.125;
+    }
+
+    private static double getDefaultRarityWeight() {
+        return 0.919;
     }
 }

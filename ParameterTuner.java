@@ -81,6 +81,7 @@ public class ParameterTuner {
         private ParameterSet generateRandomParameterSet() {
             return new ParameterSet(
                 random.nextDouble() * 5.0,
+                random.nextDouble() * 5.0,
                 random.nextDouble() * 5.0
             );
         }
@@ -110,7 +111,10 @@ public class ParameterTuner {
 
         private double evaluateParameterSetSingle(ParameterSet params, int runs) {
             ImprovedWeightedSelect strategy =
-                new ImprovedWeightedSelect(statistics, params.urgencyWeight, params.futureWeight);
+                new ImprovedWeightedSelect(statistics,
+                    params.urgencyWeight,
+                    params.futureWeight,
+                    params.rarityWeight);
             
             List<Double> results = new ArrayList<>();
             for (int run = 0; run < runs; run++) {
@@ -172,14 +176,16 @@ public class ParameterTuner {
             double alpha = random.nextDouble();
             return new ParameterSet(
                 interpolate(p1.urgencyWeight, p2.urgencyWeight, alpha),
-                interpolate(p1.futureWeight,   p2.futureWeight,   alpha)
+                interpolate(p1.futureWeight,   p2.futureWeight,   alpha),
+                interpolate(p1.rarityWeight,   p2.rarityWeight,   alpha)
             );
         }
 
         private void mutate(ParameterSet params) {
             if (random.nextDouble() < MUTATION_RATE) {
                 params.urgencyWeight += gaussian(0, MUTATION_STRENGTH);
-                params.futureWeight   += gaussian(0, MUTATION_STRENGTH);
+                params.futureWeight  += gaussian(0, MUTATION_STRENGTH);
+                params.rarityWeight  += gaussian(0, MUTATION_STRENGTH);
                 params.q3Score = 0;
             }
         }
@@ -205,8 +211,8 @@ public class ParameterTuner {
             if (improved && population.size() > 0) {
                 ParameterSet best = population.get(0);
                 System.out.println("  *** IMPROVEMENT *** Current best parameters:");
-                System.out.printf("    Urgency=%.3f, Future=%.3f%n",
-                    best.urgencyWeight, best.futureWeight);
+                System.out.printf("    Urgency=%.3f, Future=%.3f, Rarity=%.3f%n",
+                    best.urgencyWeight, best.futureWeight, best.rarityWeight);
                 System.out.println();
             }
         }
@@ -228,23 +234,25 @@ public class ParameterTuner {
         static class ParameterSet {
             double urgencyWeight;
             double futureWeight;
+            double rarityWeight;
             double q3Score = 0;
 
-            ParameterSet(double urgencyWeight, double futureWeight) {
+            ParameterSet(double urgencyWeight, double futureWeight, double rarityWeight) {
                 this.urgencyWeight = urgencyWeight;
                 this.futureWeight  = futureWeight;
+                this.rarityWeight  = rarityWeight;
             }
 
             ParameterSet copy() {
-                ParameterSet c = new ParameterSet(urgencyWeight, futureWeight);
+                ParameterSet c = new ParameterSet(urgencyWeight, futureWeight, rarityWeight);
                 c.q3Score = this.q3Score;
                 return c;
             }
 
             void print() {
                 System.out.printf("Best Q3 Performance: %.4f turns%n", q3Score);
-                System.out.printf("UrgencyWeight=%.3f, FutureWeight=%.3f%n",
-                                  urgencyWeight, futureWeight);
+                System.out.printf("UrgencyWeight=%.3f, FutureWeight=%.3f, RarityWeight=%.3f%n",
+                                  urgencyWeight, futureWeight, rarityWeight);
             }
         }
     }
