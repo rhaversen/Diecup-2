@@ -12,30 +12,27 @@ import strategies.ImprovedWeightedSelect;
 
 public class ParameterTuner {
     private static final int POPULATION_SIZE = 100;
-    private static final int MAX_GENERATIONS = 500;
-    private static final int RUNS_PER_CONFIG = 200;
-    private static final int EVALUATIONS_PER_CONFIG = 5;
-    private static final int FINAL_RUNS = 500;
-    private static final int FINAL_EVALUATIONS = 10;
+    private static final int MAX_GENERATIONS = 100;
+    private static final int EVALUATIONS_PER_CONFIG = 10000;
     private static final int ELITE_COUNT = 10;
     private static final int TOURNAMENT_SIZE = 3;
     private static final double MUTATION_RATE = 0.8;
     private static final double MUTATION_STRENGTH = 0.1;
     private static final Random random = new Random();
     
-    // define how many weights—and names if you like
-    private static final int WEIGHT_COUNT = 3;
+    // define weights to optimize
     private static final String[] WEIGHT_NAMES = {
-        "UrgencyWeight", "FutureWeight", "RarityWeight"
+        "UrgencyWeight", "RarityWeight"
     };
+    private static final int WEIGHT_COUNT = WEIGHT_NAMES.length;
 
     public static void main(String[] args) {
-        System.out.println("Starting simple parameter optimization for ImprovedWeightedSelect...");
+        System.out.println("Starting parameter optimization for ImprovedWeightedSelect...");
         
         Statistics statistics = new Statistics(6, 6);
-        SimpleOptimizer optimizer = new SimpleOptimizer(statistics);
+        Optimizer optimizer = new Optimizer(statistics);
         
-        SimpleOptimizer.ParameterSet bestParams = optimizer.optimize();
+        Optimizer.ParameterSet bestParams = optimizer.optimize();
         
         System.out.println("=".repeat(60));
         System.out.println("OPTIMIZATION COMPLETE");
@@ -44,12 +41,12 @@ public class ParameterTuner {
         System.out.println("=".repeat(60));
     }
 
-    static class SimpleOptimizer {
+    static class Optimizer {
         private final Statistics statistics;
         private final List<ParameterSet> population;
         private double bestScore = Double.MAX_VALUE;
 
-        public SimpleOptimizer(Statistics statistics) {
+        public Optimizer(Statistics statistics) {
             this.statistics = statistics;
             this.population = new ArrayList<>();
         }
@@ -61,7 +58,7 @@ public class ParameterTuner {
             initializePopulation();
             evaluatePopulation();
             
-            System.out.printf("Initial best Q3: %.4f turns%n%n", bestScore);
+            System.out.printf("Initial best average turns: %.4f turns%n%n", bestScore);
             double previousBestScore = bestScore;
             
             for (int generation = 1; generation <= MAX_GENERATIONS; generation++) {
@@ -74,8 +71,6 @@ public class ParameterTuner {
             }
             
             ParameterSet best = population.get(0);
-            System.out.printf("%nFinal evaluation with %d runs x %d evaluations...%n", FINAL_RUNS, FINAL_EVALUATIONS);
-            best.q3Score = evaluateParameterSetAverage(best, FINAL_RUNS, FINAL_EVALUATIONS);
             
             long totalTime = System.currentTimeMillis() - startTime;
             System.out.printf("Total optimization time: %s%n", formatTime(totalTime));
@@ -104,10 +99,10 @@ public class ParameterTuner {
             List<Future<Map.Entry<ParameterSet, Double>>> futures = new ArrayList<>();
 
             for (ParameterSet params : population) {
-                if (params.q3Score == 0) {
+                if (params.avgTurns == 0) {
                     futures.add(executor.submit(() -> {
-                        double score = evaluateParameterSetAverage(
-                            params, RUNS_PER_CONFIG, EVALUATIONS_PER_CONFIG
+                        double score = evaluateParameterSet(
+                            params, EVALUATIONS_PER_CONFIG
                         );
                         return new AbstractMap.SimpleEntry<>(params, score);
                     }));
@@ -117,7 +112,7 @@ public class ParameterTuner {
             for (Future<Map.Entry<ParameterSet, Double>> future : futures) {
                 try {
                     Map.Entry<ParameterSet, Double> entry = future.get();
-                    entry.getKey().q3Score = entry.getValue();
+                    entry.getKey().avgTurns = entry.getValue();
                     if (entry.getValue() < bestScore) {
                         bestScore = entry.getValue();
                     }
@@ -127,49 +122,23 @@ public class ParameterTuner {
             }
 
             executor.shutdown();
-            population.sort((a, b) -> Double.compare(a.q3Score, b.q3Score));
+            population.sort((a, b) -> Double.compare(a.avgTurns, b.avgTurns));
         }
 
-        private double evaluateParameterSetAverage(ParameterSet params, int runsPerEvaluation, int evaluations) {
-            double totalQ3 = 0.0;
-            
-            for (int eval = 0; eval < evaluations; eval++) {
-                double q3 = evaluateParameterSetSingle(params, runsPerEvaluation);
-                totalQ3 += q3;
-            }
-            
-            return totalQ3 / evaluations;
-        }
-
-        private double evaluateParameterSetSingle(ParameterSet params, int runs) {
-            // unpack weights in order
+        private double evaluateParameterSet(ParameterSet params, int runs) {
             ImprovedWeightedSelect strategy = new ImprovedWeightedSelect(
                 statistics,
-                params.weights[0], params.weights[1], params.weights[2]
+                params.weights[0], params.weights[1]
             );
-            
-            List<Double> results = new ArrayList<>();
+
+            double totalTurns = 0;
             for (int run = 0; run < runs; run++) {
                 diecup.Game game = new diecup.Game(6, 6, strategy, false, false);
                 game.startGame();
-                results.add((double) game.getTurns());
+                totalTurns += game.getTurns();
             }
-            
-            results.sort(Double::compareTo);
-            
-            // Calculate Q3 with proper double precision interpolation
-            double q3Position = (results.size() - 1) * 0.75;
-            int lowerIndex = (int) Math.floor(q3Position);
-            int upperIndex = (int) Math.ceil(q3Position);
-            lowerIndex = Math.max(0, Math.min(lowerIndex, results.size() - 1));
-            upperIndex = Math.max(0, Math.min(upperIndex, results.size() - 1));
-            
-            if (lowerIndex == upperIndex) {
-                return results.get(lowerIndex);
-            } else {
-                double fraction = q3Position - lowerIndex;
-                return results.get(lowerIndex) * (1.0 - fraction) + results.get(upperIndex) * fraction;
-            }
+
+            return totalTurns / runs;
         }
 
         private void evolvePopulation() {
@@ -197,7 +166,7 @@ public class ParameterTuner {
             ParameterSet best = null;
             for (int i = 0; i < TOURNAMENT_SIZE; i++) {
                 ParameterSet candidate = population.get(random.nextInt(population.size()));
-                if (best == null || candidate.q3Score < best.q3Score) {
+                if (best == null || candidate.avgTurns < best.avgTurns) {
                     best = candidate;
                 }
             }
@@ -218,7 +187,7 @@ public class ParameterTuner {
                 for (int i = 0; i < WEIGHT_COUNT; i++) {
                     ps.weights[i] = clamp(ps.weights[i] + random.nextGaussian() * MUTATION_STRENGTH);
                 }
-                ps.q3Score = 0;
+                ps.avgTurns = 0;
             }
         }
 
@@ -232,7 +201,7 @@ public class ParameterTuner {
             long estimatedTotal = (long) (elapsed / progress);
             long remaining = estimatedTotal - elapsed;
             
-            System.out.printf("Generation %d/%d (%.1f%%) - Best Q3: %.4f turns - Elapsed: %s - ETA: %s%n", 
+            System.out.printf("Generation %d/%d (%.1f%%) - Best average turns: %.4f turns - Elapsed: %s - ETA: %s%n", 
                 generation, MAX_GENERATIONS, progress * 100, bestScore, 
                 formatTime(elapsed), formatTime(remaining));
                 
@@ -262,7 +231,7 @@ public class ParameterTuner {
 
         static class ParameterSet {
             double[] weights;
-            double q3Score = 0;
+            double avgTurns = 0;
 
             ParameterSet(double[] weights) {
                 this.weights = weights.clone();
@@ -270,12 +239,12 @@ public class ParameterTuner {
 
             ParameterSet copy() {
                 ParameterSet c = new ParameterSet(this.weights);
-                c.q3Score = this.q3Score;
+                c.avgTurns = this.avgTurns;
                 return c;
             }
 
             void print() {
-                System.out.printf("Best Q3 Performance: %.4f turns%n", q3Score);
+                System.out.printf("Best average turns: %.4f turns%n", avgTurns);
                 for (int i = 0; i < WEIGHT_COUNT; i++) {
                     System.out.printf("  %s=%.3f%n", WEIGHT_NAMES[i], weights[i]);
                 }
