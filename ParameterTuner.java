@@ -92,7 +92,7 @@ public class ParameterTuner {
         private ParameterSet generateRandomParameterSet() {
             double[] w = new double[WEIGHT_COUNT];
             for (int i = 0; i < WEIGHT_COUNT; i++) {
-                w[i] = random.nextDouble() * 5.0;
+                w[i] = random.nextDouble(); // initial weights in [0,1]
             }
             return new ParameterSet(w);
         }
@@ -206,20 +206,24 @@ public class ParameterTuner {
 
         private ParameterSet crossover(ParameterSet p1, ParameterSet p2) {
             double alpha = random.nextDouble();
-            double[] childW = new double[WEIGHT_COUNT];
+            double[] w = new double[WEIGHT_COUNT];
             for (int i = 0; i < WEIGHT_COUNT; i++) {
-                childW[i] = p1.weights[i] + alpha * (p2.weights[i] - p1.weights[i]);
+                w[i] = clamp(p1.weights[i] + alpha * (p2.weights[i] - p1.weights[i]));
             }
-            return new ParameterSet(childW);
+            return new ParameterSet(w);
         }
 
-        private void mutate(ParameterSet params) {
+        private void mutate(ParameterSet ps) {
             if (random.nextDouble() < MUTATION_RATE) {
                 for (int i = 0; i < WEIGHT_COUNT; i++) {
-                    params.weights[i] += random.nextGaussian() * MUTATION_STRENGTH;
+                    ps.weights[i] = clamp(ps.weights[i] + random.nextGaussian() * MUTATION_STRENGTH);
                 }
-                params.q3Score = 0;
+                ps.q3Score = 0;
             }
+        }
+
+        private static double clamp(double v) {
+            return Math.min(1.0, Math.max(0.0, v));
         }
 
         private void printProgress(int generation, long startTime, boolean improved) {
