@@ -11,25 +11,28 @@ import diecup.Statistics;
 import strategies.ImprovedWeightedSelect;
 
 public class ParameterTuner {
-    private static final int POPULATION_SIZE = 100;
+    private static final int POPULATION_SIZE = 500;
     private static final int MAX_GENERATIONS = 100;
-    private static final int EVALUATIONS_PER_CONFIG = 10000;
-    private static final int ELITE_COUNT = 10;
+    private static final int EVALUATIONS_PER_CONFIG = 5000;
+    private static final int ELITE_COUNT = 20;
     private static final int TOURNAMENT_SIZE = 3;
     private static final double MUTATION_RATE = 0.8;
     private static final double MUTATION_STRENGTH = 0.1;
     private static final Random random = new Random();
+
+    private static final int amountOfDice = 6;
+    private static final int sidesPerDie = 6;
     
     // define weights to optimize
     private static final String[] WEIGHT_NAMES = {
-        "UrgencyWeight", "RarityWeight"
+        "UrgencyWeight", "RarityWeight", "progressWeight"
     };
     private static final int WEIGHT_COUNT = WEIGHT_NAMES.length;
 
     public static void main(String[] args) {
         System.out.println("Starting parameter optimization for ImprovedWeightedSelect...");
         
-        Statistics statistics = new Statistics(6, 6);
+        Statistics statistics = new Statistics(amountOfDice, sidesPerDie);
         Optimizer optimizer = new Optimizer(statistics);
         
         Optimizer.ParameterSet bestParams = optimizer.optimize();
@@ -128,12 +131,12 @@ public class ParameterTuner {
         private double evaluateParameterSet(ParameterSet params, int runs) {
             ImprovedWeightedSelect strategy = new ImprovedWeightedSelect(
                 statistics,
-                params.weights[0], params.weights[1]
+                params.weights[0], params.weights[1], params.weights[2]
             );
 
             double totalTurns = 0;
             for (int run = 0; run < runs; run++) {
-                diecup.Game game = new diecup.Game(6, 6, strategy, false, false);
+                diecup.Game game = new diecup.Game(amountOfDice, sidesPerDie, strategy, false, false);
                 game.startGame();
                 totalTurns += game.getTurns();
             }
