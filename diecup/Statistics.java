@@ -4,10 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Statistics {
-    private Map<Integer, Double> probabilities;
+    private Map<Integer, Double> generalFrequencies;
 
     public Statistics(int numberOfDice, int sides) {
-        calculateProbabilities(numberOfDice, sides);
+        calculateGeneralFrequencies(numberOfDice, sides);
     }
 
     /**
@@ -17,11 +17,11 @@ public class Statistics {
      *
      * @return a map from face value to its estimated probability
      */
-    public Map<Integer, Double> getProbabilities() {
-        return probabilities;
+    public Map<Integer, Double> getGeneralFrequencies() {
+        return generalFrequencies;
     }
 
-    private void calculateProbabilities(int numberOfDice, int sides) {
+    private void calculateGeneralFrequencies(int numberOfDice, int sides) {
         int iterations = 10000;
         Map<Integer, Integer> result = new HashMap<>();
 
@@ -46,6 +46,6 @@ public class Statistics {
         for (Map.Entry<Integer, Integer> entry : result.entrySet()) {
             normalizedMap.put(entry.getKey(), entry.getValue() / (double) iterations);
         }
-        probabilities = normalizedMap;
+        generalFrequencies = normalizedMap;
     }
 }

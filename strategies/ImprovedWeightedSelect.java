@@ -25,7 +25,7 @@ public class ImprovedWeightedSelect implements Strategy {
             double urgencyWeight,
             double futureWeight,
             double rarityWeight) {
-        this.generalFrequencies = statistics.getProbabilities();
+        this.generalFrequencies = statistics.getGeneralFrequencies();
         this.urgencyWeight = urgencyWeight;
         this.futureWeight = futureWeight;
         this.rarityWeight = rarityWeight;

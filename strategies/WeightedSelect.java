@@ -11,7 +11,7 @@ public class WeightedSelect implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();
 
     public WeightedSelect(Statistics statistics) {
-        this.generalFrequencies = statistics.getProbabilities();
+        this.generalFrequencies = statistics.getGeneralFrequencies();
     }
 
     public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {

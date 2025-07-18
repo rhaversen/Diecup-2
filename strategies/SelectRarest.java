@@ -10,7 +10,7 @@ public class SelectRarest implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();
 
     public SelectRarest(Statistics statistics) {
-        this.generalFrequencies = statistics.getProbabilities();
+        this.generalFrequencies = statistics.getGeneralFrequencies();
     }
 
     public int getSelectedNumber(Map<Integer, Integer> valueMap, Scoreboard scoreboard) {
