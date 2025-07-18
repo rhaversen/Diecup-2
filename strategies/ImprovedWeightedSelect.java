@@ -84,14 +84,14 @@ public class ImprovedWeightedSelect implements Strategy {
     }
 
     private static double getDefaultUrgencyWeight() {
-        return 0.146;
+        return 0.140;
     }
 
     private static double getDefaultRarityWeight() {
-        return 0.582;
+        return 0.345;
     }
 
     private static double getDefaultprogressWeight() {
-        return 0.926;
+        return 0.994;
     }
 }

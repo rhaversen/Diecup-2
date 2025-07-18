@@ -9,8 +9,8 @@ import java.util.List;
 public class Main {
     public static void main(String[] args) {
         if (args.length == 0) {
-            getStatistics();
-            // startGame();
+            // getStatistics();
+            startGame();
         } else if ("start".equals(args[0])) {
             startGame();
         } else if ("statistics".equals(args[0])) {
@@ -55,7 +55,7 @@ public class Main {
         int numberOfDice = 6;
         int sides = 6;
         Statistics statistics = new Statistics(numberOfDice, sides);
-        Game game = new Game(numberOfDice, sides, new WeightedSelect(statistics), true, true);
+        Game game = new Game(numberOfDice, sides, new ImprovedWeightedSelect(statistics), true, true);
         game.startGame();
     }
 }
