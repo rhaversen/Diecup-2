@@ -10,72 +10,40 @@ import diecup.Statistics;
 public class ImprovedWeightedSelect implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();
     private final double urgencyWeight;
-    private final double futureWeight;
     private final double rarityWeight;
+    private final double progressWeight;
 
     // default constructor using tuned defaults
     public ImprovedWeightedSelect(Statistics statistics) {
         this(statistics,
                 getDefaultUrgencyWeight(),
-                getDefaultFutureWeight(),
-                getDefaultRarityWeight());
+                getDefaultRarityWeight(),
+                getDefaultprogressWeight());
     }
 
     public ImprovedWeightedSelect(Statistics statistics,
             double urgencyWeight,
-            double futureWeight,
-            double rarityWeight) {
+            double rarityWeight,
+            double progressWeight) {
         this.generalFrequencies = statistics.getGeneralFrequencies();
         this.urgencyWeight = urgencyWeight;
-        this.futureWeight = futureWeight;
         this.rarityWeight = rarityWeight;
+        this.progressWeight = progressWeight;
     }
 
     public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {
-        int maxPoints = 5; // default max points, can be adjusted as needed
-        int totalSlots = 12; // default total slots, can be adjusted as needed
-
-        // calculate average points across all slots
-        int totalPoints = 0;
-        for (int pts : scoreboard.getPoints().values()) {
-            totalPoints += pts;
-        }
-        double averagePoints = totalPoints / (double) totalSlots;
-
-        // compute how many dice are in this roll
-        int currentDice = 0;
-        for (int cnt : values.values()) {
-            currentDice += cnt;
-        }
-
+        int maxPoints = 5; // 5 is default max points pr slot (Game rule)
         Map<Integer, Double> scores = new HashMap<>();
 
         for (Map.Entry<Integer, Integer> entry : values.entrySet()) {
             int value = entry.getKey();
             int countInThrow = entry.getValue();
             int pointsOnBoard = scoreboard.getPoints().getOrDefault(value, 0);
-            int remaining = maxPoints - pointsOnBoard;
-            int collectable = Math.min(countInThrow, remaining);
 
             if (pointsOnBoard < maxPoints) {
-                Double frequency = generalFrequencies.get(value);
-                if (frequency != null) {
-                    double score = (1.0 / Math.pow(frequency, rarityWeight)) * collectable;
-                    // boost when many points are still missing
-                    double missingFactor = 1 + (remaining / (double) maxPoints);
-                    score *= missingFactor;
-
-                    double deficit = averagePoints - pointsOnBoard;
-                    double urgencyFactor = deficit > 0
-                            ? 1 + (deficit / maxPoints) * urgencyWeight
-                            : 1;
-                    score *= urgencyFactor;
-
-                    int diceAfter = currentDice - collectable;
-                    double futurePotential = 1 - Math.pow(1 - frequency, Math.max(diceAfter, 0));
-                    score *= 1 + futurePotential * futureWeight;
-
-                    scores.put(value, score);
+                int collectable = Math.min(countInThrow, maxPoints - pointsOnBoard);
+                if (collectable > 0) {
+                    scores.put(value, calculateScore(value, collectable, pointsOnBoard, maxPoints));
                 }
             }
         }
@@ -85,15 +53,45 @@ public class ImprovedWeightedSelect implements Strategy {
                 : Collections.max(scores.entrySet(), Map.Entry.comparingByValue()).getKey();
     }
 
-    private static double getDefaultUrgencyWeight() {
-        return -0.426;
+    private double calculateScore(int value, int collectable, int pointsOnBoard, int maxPoints) {
+        Double frequency = generalFrequencies.get(value);
+        if (frequency == null || frequency == 0) {
+            return 0;
+        }
+
+        double rarityValue = computeRarityValue(frequency, collectable);
+        double progressValue = computeProgressValue(collectable, pointsOnBoard, maxPoints);
+        double urgencyValue = computeUrgencyValue(frequency, collectable, maxPoints);
+
+        return rarityWeight * rarityValue
+                + progressWeight * progressValue
+                + urgencyWeight * urgencyValue;
     }
 
-    private static double getDefaultFutureWeight() {
-        return 4.125;
+    private double computeRarityValue(double frequency, int collectable) {
+        return collectable / frequency;
+    }
+
+    private double computeProgressValue(int collectable, int pointsOnBoard, int maxPoints) {
+        double progressBefore = (double) pointsOnBoard / maxPoints;
+        double progressAfter = (double) Math.min(pointsOnBoard + collectable, maxPoints) / maxPoints;
+        return progressAfter - progressBefore;
+    }
+
+    private double computeUrgencyValue(double frequency, int collectable, int maxPoints) {
+        double expectedPointsPerTurn = frequency * maxPoints;
+        return collectable - expectedPointsPerTurn;
+    }
+
+    private static double getDefaultUrgencyWeight() {
+        return 0.146;
     }
 
     private static double getDefaultRarityWeight() {
-        return 0.919;
+        return 0.582;
+    }
+
+    private static double getDefaultprogressWeight() {
+        return 0.926;
     }
 }
