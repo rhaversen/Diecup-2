@@ -10,14 +10,13 @@ Win by collecting 5 points for each number (1-12) on the scoreboard. The final s
 ## Turn Mechanics
 
 1. **Roll Phase**: Roll all available dice (starting with 5)
-2. **Selection Phase**: Choose valid dice combinations:
-    - **Numbers 1-6**: Select a single die matching the number directly
-    - **Numbers 7-12**: Select any two dice whose sum equals the target number
-    - **Note**: You must collect all available dice for the number you initially selected in a roll. You cant leave any dice with the same value as the number you selected in a roll.
-
-3. **Scoring**: Add 1 point to the corresponding number on the scoreboard
-4. **Continue**: Remove selected dice and roll the remaining dice
-5. **Repeat**: Roll the remaining dice, and keep collecting points until no valid combinations can be made or all dice are used. You can only select dice that match the number you initially selected in a turn. For example, if you select the number 3, you can only collect dice with the value of 3 in that roll.
+2. **Selection Phase**: Pick a target number (1–12):
+    - **Numbers 1-6**: Take all dice showing that face.
+    - **Numbers 7-12**: Take all available disjoint pairs summing to that number.
+    - **Note**: Once chosen, you must stick with this target for every subsequent roll in the turn. You must collect all available dice for the number you initially selected in a roll. You cant leave any dice with the same value as the number you selected in a roll.
+3. **Scoring**: Score points equal to the number of dice or pair of dice collected for that slot.
+4. **Continue**: Remove collected dice and reroll the remaining.
+5. **Repeat**: Repeat steps 2–4 until no valid combination remains or all dice are used. You can only select dice that match the number you initially selected in a turn. For example, if you select the number 3, you can only collect dice with the value of 3 in that roll.
 
 ## Special Rules
 
