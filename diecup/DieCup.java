@@ -1,4 +1,5 @@
 package diecup;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -59,7 +60,8 @@ public class DieCup {
                     int pairs = 1 + countSumPairs(newDieList, dieList[i].getFaceValue() + dieList[j].getFaceValue());
 
                     // Add it to the map if it is bigger
-                    if (pairs > pairDieValuesMap.getOrDefault(dieList[i].getFaceValue() + dieList[j].getFaceValue(), 0)) {
+                    if (pairs > pairDieValuesMap.getOrDefault(dieList[i].getFaceValue() + dieList[j].getFaceValue(),
+                            0)) {
                         pairDieValuesMap.put(dieList[i].getFaceValue() + dieList[j].getFaceValue(), pairs);
                     }
                 }
@@ -67,7 +69,8 @@ public class DieCup {
             }
         }
 
-        // Merge the two maps, overwriting the single die values with the pair die values
+        // Merge the two maps, overwriting the single die values with the pair die
+        // values
         Map<Integer, Integer> localValuesMap = new HashMap<>();
         for (Map.Entry<Integer, Integer> entry : singleDieValuesMap.entrySet()) {
             localValuesMap.put(entry.getKey(), entry.getValue());

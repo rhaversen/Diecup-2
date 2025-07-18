@@ -1,10 +1,11 @@
 package diecup;
+
 import java.util.HashMap;
 import java.util.Map;
 
 public class Scoreboard {
     private Map<Integer, Integer> points;
-    
+
     public Scoreboard(int maxNumber) {
         // Initialize the scoreboard with all numbers from 1 to 12
         // and set the value to 0
@@ -17,7 +18,7 @@ public class Scoreboard {
     public Scoreboard() {
         this(12);
     }
-    
+
     public boolean isComplete() {
         for (int value : this.points.values()) {
             if (value < 5) {

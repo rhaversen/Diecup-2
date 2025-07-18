@@ -14,7 +14,7 @@ import strategies.Strategy;
 
 public class Calculations {
     private Logger logger = new Logger(true);
-    
+
     public void calculateAverageTurns(Strategy strategy) {
         int simulationCount = 10000;
         int numberOfDice = 6;
@@ -24,24 +24,25 @@ public class Calculations {
         long startTime = System.currentTimeMillis();
         long lastProgressUpdate = startTime;
 
-        logger.log("Starting simulation with " + simulationCount + " iterations using " + strategy.getClass().getSimpleName());
+        logger.log("Starting simulation with " + simulationCount + " iterations using "
+                + strategy.getClass().getSimpleName());
 
         for (int i = 0; i < simulationCount; i++) {
             long currentTime = System.currentTimeMillis();
-            
+
             // Show progress every 500ms
             if (currentTime - lastProgressUpdate >= 500 && i > 0) {
                 long elapsedTime = currentTime - startTime;
                 double avgTimePerSimulation = (double) elapsedTime / i;
                 long remainingSimulations = simulationCount - i;
                 long estimatedTimeRemaining = (long) (remainingSimulations * avgTimePerSimulation);
-                
-                String progressMsg = String.format("Progress: %d/%d (%.1f%%) - ETA: %d seconds", 
-                    i, simulationCount, (100.0 * i / simulationCount), estimatedTimeRemaining / 1000);
+
+                String progressMsg = String.format("Progress: %d/%d (%.1f%%) - ETA: %d seconds",
+                        i, simulationCount, (100.0 * i / simulationCount), estimatedTimeRemaining / 1000);
                 logger.log(progressMsg);
                 lastProgressUpdate = currentTime;
             }
-            
+
             Game game = new Game(numberOfDice, sides, strategy, false, false);
             game.startGame();
             turns.add(game.getTurns());
@@ -59,7 +60,8 @@ public class Calculations {
         String strategyName;
         try {
             String toStringResult = strategy.toString();
-            // Check if toString() returns a custom name or just the default Object.toString()
+            // Check if toString() returns a custom name or just the default
+            // Object.toString()
             if (toStringResult.contains("@")) {
                 // Default Object.toString() format, use class name instead
                 strategyName = strategy.getClass().getSimpleName();

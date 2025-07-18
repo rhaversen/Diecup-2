@@ -1,4 +1,5 @@
 package strategies;
+
 import java.util.Map;
 
 import diecup.Scoreboard;

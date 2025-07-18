@@ -22,21 +22,21 @@ public class ParameterTuner {
 
     private static final int amountOfDice = 6;
     private static final int sidesPerDie = 6;
-    
+
     // define weights to optimize
     private static final String[] WEIGHT_NAMES = {
-        "UrgencyWeight", "RarityWeight", "progressWeight"
+            "UrgencyWeight", "RarityWeight", "progressWeight"
     };
     private static final int WEIGHT_COUNT = WEIGHT_NAMES.length;
 
     public static void main(String[] args) {
         System.out.println("Starting parameter optimization for ImprovedWeightedSelect...");
-        
+
         Statistics statistics = new Statistics(amountOfDice, sidesPerDie);
         Optimizer optimizer = new Optimizer(statistics);
-        
+
         Optimizer.ParameterSet bestParams = optimizer.optimize();
-        
+
         System.out.println("=".repeat(60));
         System.out.println("OPTIMIZATION COMPLETE");
         System.out.println("=".repeat(60));
@@ -57,27 +57,27 @@ public class ParameterTuner {
         public ParameterSet optimize() {
             long startTime = System.currentTimeMillis();
             System.out.println("Initializing population...");
-            
+
             initializePopulation();
             evaluatePopulation();
-            
+
             System.out.printf("Initial best average turns: %.4f turns%n%n", bestScore);
             double previousBestScore = bestScore;
-            
+
             for (int generation = 1; generation <= MAX_GENERATIONS; generation++) {
                 evolvePopulation();
                 evaluatePopulation();
-                
+
                 boolean improved = bestScore < previousBestScore || generation == 1;
                 printProgress(generation, startTime, improved);
                 previousBestScore = bestScore;
             }
-            
+
             ParameterSet best = population.get(0);
-            
+
             long totalTime = System.currentTimeMillis() - startTime;
             System.out.printf("Total optimization time: %s%n", formatTime(totalTime));
-            
+
             return best;
         }
 
@@ -97,16 +97,14 @@ public class ParameterTuner {
 
         private void evaluatePopulation() {
             ExecutorService executor = Executors.newFixedThreadPool(
-                Runtime.getRuntime().availableProcessors()
-            );
+                    Runtime.getRuntime().availableProcessors());
             List<Future<Map.Entry<ParameterSet, Double>>> futures = new ArrayList<>();
 
             for (ParameterSet params : population) {
                 if (params.avgTurns == 0) {
                     futures.add(executor.submit(() -> {
                         double score = evaluateParameterSet(
-                            params, EVALUATIONS_PER_CONFIG
-                        );
+                                params, EVALUATIONS_PER_CONFIG);
                         return new AbstractMap.SimpleEntry<>(params, score);
                     }));
                 }
@@ -130,9 +128,8 @@ public class ParameterTuner {
 
         private double evaluateParameterSet(ParameterSet params, int runs) {
             ImprovedWeightedSelect strategy = new ImprovedWeightedSelect(
-                statistics,
-                params.weights[0], params.weights[1], params.weights[2]
-            );
+                    statistics,
+                    params.weights[0], params.weights[1], params.weights[2]);
 
             double totalTurns = 0;
             for (int run = 0; run < runs; run++) {
@@ -146,12 +143,12 @@ public class ParameterTuner {
 
         private void evolvePopulation() {
             List<ParameterSet> newGeneration = new ArrayList<>();
-            
+
             // Keep elite
             for (int i = 0; i < ELITE_COUNT; i++) {
                 newGeneration.add(population.get(i).copy());
             }
-            
+
             // Generate offspring
             while (newGeneration.size() < POPULATION_SIZE) {
                 ParameterSet parent1 = selectParent();
@@ -160,7 +157,7 @@ public class ParameterTuner {
                 mutate(child);
                 newGeneration.add(child);
             }
-            
+
             population.clear();
             population.addAll(newGeneration);
         }
@@ -203,11 +200,11 @@ public class ParameterTuner {
             double progress = (double) generation / MAX_GENERATIONS;
             long estimatedTotal = (long) (elapsed / progress);
             long remaining = estimatedTotal - elapsed;
-            
-            System.out.printf("Generation %d/%d (%.1f%%) - Best average turns: %.4f turns - Elapsed: %s - ETA: %s%n", 
-                generation, MAX_GENERATIONS, progress * 100, bestScore, 
-                formatTime(elapsed), formatTime(remaining));
-                
+
+            System.out.printf("Generation %d/%d (%.1f%%) - Best average turns: %.4f turns - Elapsed: %s - ETA: %s%n",
+                    generation, MAX_GENERATIONS, progress * 100, bestScore,
+                    formatTime(elapsed), formatTime(remaining));
+
             if (improved) {
                 ParameterSet best = population.get(0);
                 System.out.println("  *** IMPROVEMENT *** Current best parameters:");
