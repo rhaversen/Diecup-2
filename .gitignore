@@ -22,3 +22,6 @@ gradle-app.setting
 
 # Ignore simulation files
 /simulation_results
+
+# Ignore analysis results
+/analysis_results
