@@ -9,7 +9,7 @@ Win by collecting 5 points for each number (1-12) on the scoreboard. The final s
 
 ## Turn Mechanics
 
-1. **Roll Phase**: Roll all available dice (starting with 5)
+1. **Roll Phase**: Roll all available dice (starting with 6)
 2. **Selection Phase**: Pick a target number (1–12):
     - **Numbers 1-6**: Take all dice showing that face.
     - **Numbers 7-12**: Take all available disjoint pairs summing to that number.
