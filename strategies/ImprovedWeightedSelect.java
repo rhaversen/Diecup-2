@@ -9,26 +9,42 @@ import diecup.Statistics;
 
 public class ImprovedWeightedSelect implements Strategy {
     private Map<Integer, Double> generalFrequencies = new HashMap<>();
-    private final double urgencyWeight;
+    private final double opportunityWeight;
     private final double rarityWeight;
     private final double progressWeight;
+    private final double rarityScalar;
+    private final double collectionWeight;
+    private final double collectionScalar;
+    private final double completionWeight;
 
     // default constructor using tuned defaults
     public ImprovedWeightedSelect(Statistics statistics) {
         this(statistics,
-                getDefaultUrgencyWeight(),
+                getDefaultOpportunityWeight(),
                 getDefaultRarityWeight(),
-                getDefaultprogressWeight());
+                getDefaultprogressWeight(),
+                getDefaultRarityScalar(),
+                getDefaultCollectionWeight(),
+                getDefaultCollectionScalar(),
+                getDefaultCompletionWeight());
     }
 
     public ImprovedWeightedSelect(Statistics statistics,
-            double urgencyWeight,
+            double opportunityWeight,
             double rarityWeight,
-            double progressWeight) {
+            double progressWeight,
+            double rarityScalar,
+            double collectionWeight,
+            double collectionScalar,
+            double completionWeight) {
         this.generalFrequencies = statistics.getGeneralFrequencies();
-        this.urgencyWeight = urgencyWeight;
+        this.opportunityWeight = opportunityWeight;
         this.rarityWeight = rarityWeight;
         this.progressWeight = progressWeight;
+        this.rarityScalar = rarityScalar;
+        this.collectionWeight = collectionWeight;
+        this.collectionScalar = collectionScalar;
+        this.completionWeight = completionWeight;
     }
 
     public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {
@@ -61,15 +77,19 @@ public class ImprovedWeightedSelect implements Strategy {
 
         double rarityValue = computeRarityValue(frequency, collectable);
         double progressValue = computeProgressValue(collectable, pointsOnBoard, maxPoints);
-        double urgencyValue = computeUrgencyValue(frequency, collectable, maxPoints);
+        double opportunityValue = computeOpportunityValue(frequency, collectable, maxPoints);
+        double collectionValue = computeCollectionValue(collectable);
+        double completionBonus = computeCompletionBonus(pointsOnBoard, collectable, maxPoints);
 
         return rarityWeight * rarityValue
                 + progressWeight * progressValue
-                + urgencyWeight * urgencyValue;
+                + opportunityWeight * opportunityValue
+                + collectionWeight * collectionValue
+                + completionWeight * completionBonus;
     }
 
     private double computeRarityValue(double frequency, int collectable) {
-        return collectable / frequency;
+        return collectable / Math.pow(frequency, 1 - rarityScalar);
     }
 
     private double computeProgressValue(int collectable, int pointsOnBoard, int maxPoints) {
@@ -78,12 +98,20 @@ public class ImprovedWeightedSelect implements Strategy {
         return progressAfter - progressBefore;
     }
 
-    private double computeUrgencyValue(double frequency, int collectable, int maxPoints) {
+    private double computeOpportunityValue(double frequency, int collectable, int maxPoints) {
         double expectedPointsPerTurn = frequency * maxPoints;
         return collectable - expectedPointsPerTurn;
     }
 
-    private static double getDefaultUrgencyWeight() {
+    private double computeCollectionValue(int collectable) {
+        return Math.pow(collectable, collectionScalar);
+    }
+
+    private double computeCompletionBonus(int pointsOnBoard, int collectable, int maxPoints) {
+        return (pointsOnBoard + collectable == maxPoints) ? 1.0 : 0.0;
+    }
+
+    private static double getDefaultOpportunityWeight() {
         return 0.140;
     }
 
@@ -93,5 +121,21 @@ public class ImprovedWeightedSelect implements Strategy {
 
     private static double getDefaultprogressWeight() {
         return 0.994;
+    }
+
+    private static double getDefaultRarityScalar() {
+        return 0;
+    }
+
+    private static double getDefaultCollectionWeight() {
+        return 0;
+    }
+
+    private static double getDefaultCollectionScalar() {
+        return 0;
+    }
+
+    private static double getDefaultCompletionWeight() {
+        return 0;
     }
 }

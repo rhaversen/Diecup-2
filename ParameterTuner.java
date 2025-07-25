@@ -25,7 +25,13 @@ public class ParameterTuner {
 
     // define weights to optimize
     private static final String[] WEIGHT_NAMES = {
-            "UrgencyWeight", "RarityWeight", "progressWeight"
+            "opportunityWeight",
+            "RarityWeight",
+            "progressWeight",
+            "rarityScalar",
+            "collectionWeight",
+            "collectionScalar",
+            "completionWeight"
     };
     private static final int WEIGHT_COUNT = WEIGHT_NAMES.length;
 
@@ -129,7 +135,13 @@ public class ParameterTuner {
         private double evaluateParameterSet(ParameterSet params, int runs) {
             ImprovedWeightedSelect strategy = new ImprovedWeightedSelect(
                     statistics,
-                    params.weights[0], params.weights[1], params.weights[2]);
+                    params.weights[0],
+                    params.weights[1],
+                    params.weights[2],
+                    params.weights[3],
+                    params.weights[4],
+                    params.weights[5],
+                    params.weights[6]);
 
             double totalTurns = 0;
             for (int run = 0; run < runs; run++) {
