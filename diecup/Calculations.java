@@ -16,7 +16,7 @@ public class Calculations {
     private Logger logger = new Logger(true);
 
     public void calculateAverageTurns(Strategy strategy) {
-        int simulationCount = 10000;
+        int simulationCount = 100000;
         int numberOfDice = 6;
         int sides = 6;
         List<Integer> turns = new ArrayList<>();
