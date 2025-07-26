@@ -54,6 +54,8 @@ public class ParameterTuner {
         private final Statistics statistics;
         private final List<ParameterSet> population;
         private double bestScore = Double.MAX_VALUE;
+        private int stagnationCounter = 0;
+        private double mutationStrength = MUTATION_STRENGTH;
 
         public Optimizer(Statistics statistics) {
             this.statistics = statistics;
@@ -71,11 +73,28 @@ public class ParameterTuner {
             double previousBestScore = bestScore;
 
             for (int generation = 1; generation <= MAX_GENERATIONS; generation++) {
-                evolvePopulation();
+                evolvePopulation(generation);
                 evaluatePopulation();
 
                 boolean improved = bestScore < previousBestScore || generation == 1;
                 printProgress(generation, startTime, improved);
+
+                if (improved) {
+                    stagnationCounter = 0;
+                    mutationStrength = MUTATION_STRENGTH;
+                } else {
+                    stagnationCounter++;
+                    if (stagnationCounter > 10) {
+                        mutationStrength = Math.min(0.5, mutationStrength * 1.5);
+                    }
+                }
+
+                if (stagnationCounter > 20) {
+                    randomRestart(0.1); // Replace 10% of population with random
+                    stagnationCounter = 0;
+                    mutationStrength = MUTATION_STRENGTH;
+                }
+
                 previousBestScore = bestScore;
             }
 
@@ -96,7 +115,7 @@ public class ParameterTuner {
         private ParameterSet generateRandomParameterSet() {
             double[] w = new double[WEIGHT_COUNT];
             for (int i = 0; i < WEIGHT_COUNT; i++) {
-                w[i] = random.nextDouble(); // initial weights in [0,1]
+                w[i] = random.nextDouble();
             }
             return new ParameterSet(w);
         }
@@ -106,7 +125,10 @@ public class ParameterTuner {
                     Runtime.getRuntime().availableProcessors());
             List<Future<Map.Entry<ParameterSet, Double>>> futures = new ArrayList<>();
 
-            for (ParameterSet params : population) {
+            List<ParameterSet> shuffled = new ArrayList<>(population);
+            java.util.Collections.shuffle(shuffled, random);
+
+            for (ParameterSet params : shuffled) {
                 if (params.avgTurns == 0) {
                     futures.add(executor.submit(() -> {
                         double score = evaluateParameterSet(
@@ -153,27 +175,6 @@ public class ParameterTuner {
             return totalTurns / runs;
         }
 
-        private void evolvePopulation() {
-            List<ParameterSet> newGeneration = new ArrayList<>();
-
-            // Keep elite
-            for (int i = 0; i < ELITE_COUNT; i++) {
-                newGeneration.add(population.get(i).copy());
-            }
-
-            // Generate offspring
-            while (newGeneration.size() < POPULATION_SIZE) {
-                ParameterSet parent1 = selectParent();
-                ParameterSet parent2 = selectParent();
-                ParameterSet child = crossover(parent1, parent2);
-                mutate(child);
-                newGeneration.add(child);
-            }
-
-            population.clear();
-            population.addAll(newGeneration);
-        }
-
         private ParameterSet selectParent() {
             ParameterSet best = null;
             for (int i = 0; i < TOURNAMENT_SIZE; i++) {
@@ -186,10 +187,21 @@ public class ParameterTuner {
         }
 
         private ParameterSet crossover(ParameterSet p1, ParameterSet p2) {
-            double alpha = random.nextDouble();
             double[] w = new double[WEIGHT_COUNT];
-            for (int i = 0; i < WEIGHT_COUNT; i++) {
-                w[i] = clamp(p1.weights[i] + alpha * (p2.weights[i] - p1.weights[i]));
+            int method = random.nextInt(3);
+            if (method == 0) {
+                double alpha = random.nextDouble();
+                for (int i = 0; i < WEIGHT_COUNT; i++) {
+                    w[i] = clamp(p1.weights[i] + alpha * (p2.weights[i] - p1.weights[i]));
+                }
+            } else if (method == 1) {
+                for (int i = 0; i < WEIGHT_COUNT; i++) {
+                    w[i] = clamp((p1.weights[i] + p2.weights[i]) / 2.0);
+                }
+            } else {
+                for (int i = 0; i < WEIGHT_COUNT; i++) {
+                    w[i] = clamp(random.nextBoolean() ? p1.weights[i] : p2.weights[i]);
+                }
             }
             return new ParameterSet(w);
         }
@@ -197,9 +209,40 @@ public class ParameterTuner {
         private void mutate(ParameterSet ps) {
             if (random.nextDouble() < MUTATION_RATE) {
                 for (int i = 0; i < WEIGHT_COUNT; i++) {
-                    ps.weights[i] = clamp(ps.weights[i] + random.nextGaussian() * MUTATION_STRENGTH);
+                    ps.weights[i] = clamp(ps.weights[i] + random.nextGaussian() * mutationStrength);
                 }
                 ps.avgTurns = 0;
+            }
+        }
+        
+        private void evolvePopulation(int generation) {
+            List<ParameterSet> newGeneration = new ArrayList<>();
+
+            for (int i = 0; i < ELITE_COUNT; i++) {
+                newGeneration.add(population.get(i).copy());
+            }
+
+            int diversityCount = (int) (POPULATION_SIZE * 0.05);
+            for (int i = 0; i < diversityCount; i++) {
+                newGeneration.add(generateRandomParameterSet());
+            }
+
+            while (newGeneration.size() < POPULATION_SIZE) {
+                ParameterSet parent1 = selectParent();
+                ParameterSet parent2 = selectParent();
+                ParameterSet child = crossover(parent1, parent2);
+                mutate(child);
+                newGeneration.add(child);
+            }
+
+            population.clear();
+            population.addAll(newGeneration);
+        }
+
+        private void randomRestart(double fraction) {
+            int replaceCount = (int) (POPULATION_SIZE * fraction);
+            for (int i = POPULATION_SIZE - replaceCount; i < POPULATION_SIZE; i++) {
+                population.set(i, generateRandomParameterSet());
             }
         }
 
