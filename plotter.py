@@ -106,8 +106,11 @@ def update_plot():
     max_turns = max(all_turns)
     bins = np.arange(min_turns, max_turns + 2)
     if current_mode == "single":
-        ax1 = fig.add_subplot(2, 1, 1)
-        ax2 = fig.add_subplot(2, 1, 2)
+        # replace two-row layout with three-row grid for hist, trend, and table
+        gs = fig.add_gridspec(3, 1, height_ratios=[2,2,1])
+        ax1 = fig.add_subplot(gs[0, 0])
+        ax2 = fig.add_subplot(gs[1, 0])
+        ax3 = fig.add_subplot(gs[2, 0])
         colors = plt.get_cmap('viridis')(np.linspace(0, 1, len(strategy_data)))
         time_stats = []
         sorted_items = sorted(strategy_data.items())
@@ -163,6 +166,28 @@ def update_plot():
             plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45, ha='right')
         ax2.legend()
         ax2.grid(True, alpha=0.3)
+
+        # add a table summarizing time_stats
+        ax3.axis('off')
+        headers = ['Time','Avg','Med','Std','Count']
+        table_data = []
+        for stat in time_stats:
+            if isinstance(stat['timestamp'], datetime):
+                tlabel = stat['timestamp'].strftime("%m/%d %H:%M")
+            else:
+                tlabel = str(stat['timestamp'])[:20]
+            table_data.append([
+                tlabel,
+                f"{stat['avg']:.2f}",
+                f"{stat['median']:.2f}",
+                f"{stat['std']:.2f}",
+                stat['count']
+            ])
+        tbl = ax3.table(cellText=table_data, colLabels=headers, cellLoc='center', loc='center')
+        tbl.auto_set_font_size(False)
+        tbl.set_fontsize(9)
+        tbl.scale(1, 1.2)
+
         back_ax = fig.add_axes((0.85, 0.92, 0.12, 0.06))
         back_ax.axis('off')
         back_btn = back_ax.text(0.5, 0.5, 'Back to Overview', fontsize=12, color='blue', ha='center', va='center', fontweight='bold', bbox=dict(facecolor='white', edgecolor='blue', boxstyle='round,pad=0.5'))
@@ -235,11 +260,11 @@ def update_plot():
         for stat in stats_summary:
             row = [
                 stat['strategy'][:15] + '...' if len(stat['strategy']) > 15 else stat['strategy'],
-                f"{stat['avg']:.1f}",
-                f"{stat['median']:.1f}",
-                f"{stat['q3']:.1f}",
-                f"{stat['std']:.1f}",
-                f"{stat['q1']:.1f}",
+                f"{stat['avg']:.2f}",
+                f"{stat['median']:.2f}",
+                f"{stat['q3']:.2f}",
+                f"{stat['std']:.2f}",
+                f"{stat['q1']:.2f}",
                 f"{stat['min']}",
                 f"{stat['max']}",
                 f"{stat['count']}"
