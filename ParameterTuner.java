@@ -11,17 +11,18 @@ import diecup.Statistics;
 import strategies.ImprovedWeightedSelect;
 
 public class ParameterTuner {
-    private static final int POPULATION_SIZE = 500;
-    private static final int MAX_GENERATIONS = 100;
-    private static final int EVALUATIONS_PER_CONFIG = 5000;
-    private static final int ELITE_COUNT = 20;
-    private static final int TOURNAMENT_SIZE = 3;
-    private static final double MUTATION_RATE = 0.8;
-    private static final double MUTATION_STRENGTH = 0.1;
+    private static final int POPULATION_SIZE = 500; // Size of the population for the genetic algorithm
+    private static final int MAX_GENERATIONS = 50; // Maximum number of generations to run
+    private static final int EVALUATIONS_PER_CONFIG = 10000; // Number of evaluations per configuration
+    private static final int CONFIRMATION_EVALUATIONS = 20000; // More evaluations for confirmation
+    private static final int ELITE_COUNT = 20; // Number of elite candidates to carry over to the next generation
+    private static final int TOURNAMENT_SIZE = 3; // Size of the tournament for parent selection
+    private static final double MUTATION_RATE = 0.8; // Probability of mutation per weight
+    private static final double MUTATION_STRENGTH = 0.1; // Standard deviation for mutation strength
     private static final Random random = new Random();
 
-    private static final int amountOfDice = 6;
-    private static final int sidesPerDie = 6;
+    private static final int amountOfDice = 6; // Number of dice in the game
+    private static final int sidesPerDie = 6; // Number of sides per die in the game
 
     // define weights to optimize
     private static final String[] WEIGHT_NAMES = {
@@ -142,9 +143,6 @@ public class ParameterTuner {
                 try {
                     Map.Entry<ParameterSet, Double> entry = future.get();
                     entry.getKey().avgTurns = entry.getValue();
-                    if (entry.getValue() < bestScore) {
-                        bestScore = entry.getValue();
-                    }
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -152,6 +150,25 @@ public class ParameterTuner {
 
             executor.shutdown();
             population.sort((a, b) -> Double.compare(a.avgTurns, b.avgTurns));
+            
+            // Confirm the best candidate if it shows improvement
+            ParameterSet candidate = population.get(0);
+            if (candidate.avgTurns < bestScore) {
+                System.out.println("  Confirming promising candidate with additional evaluations...");
+                double confirmedScore = evaluateParameterSet(candidate, CONFIRMATION_EVALUATIONS);
+                candidate.avgTurns = confirmedScore;
+                
+                // Re-sort after confirmation
+                population.sort((a, b) -> Double.compare(a.avgTurns, b.avgTurns));
+                
+                if (confirmedScore < bestScore && isStatisticallySignificant(candidate, bestScore)) {
+                    bestScore = confirmedScore;
+                    System.out.printf("  Confirmed statistically significant improvement: %.4f turns%n", confirmedScore);
+                } else {
+                    System.out.printf("  Improvement not confirmed or not significant. Original: %.4f, Confirmed: %.4f%n", 
+                            bestScore, confirmedScore);
+                }
+            }
         }
 
         private double evaluateParameterSet(ParameterSet params, int runs) {
@@ -166,13 +183,20 @@ public class ParameterTuner {
                     params.weights[6]);
 
             double totalTurns = 0;
+            double sumSquares = 0;
             for (int run = 0; run < runs; run++) {
                 diecup.Game game = new diecup.Game(amountOfDice, sidesPerDie, strategy, false, false);
                 game.startGame();
-                totalTurns += game.getTurns();
+                double turns = game.getTurns();
+                totalTurns += turns;
+                sumSquares += turns * turns;
             }
 
-            return totalTurns / runs;
+            double mean = totalTurns / runs;
+            double variance = (sumSquares / runs) - (mean * mean);
+            params.standardError = Math.sqrt(variance / runs);
+            
+            return mean;
         }
 
         private ParameterSet selectParent() {
@@ -250,18 +274,30 @@ public class ParameterTuner {
             return Math.min(1.0, Math.max(0.0, v));
         }
 
+        private boolean isStatisticallySignificant(ParameterSet candidate, double currentBest) {
+            double difference = currentBest - candidate.avgTurns;
+            double pooledSE = Math.sqrt(candidate.standardError * candidate.standardError + 
+                                       candidate.standardError * candidate.standardError); // Assuming similar SE for current best
+            double tStat = difference / pooledSE;
+            
+            // Simple threshold for statistical significance (approximately t > 1.96 for p < 0.05)
+            return Math.abs(tStat) > 1.96 && difference > 0;
+        }
+
         private void printProgress(int generation, long startTime, boolean improved) {
             long elapsed = System.currentTimeMillis() - startTime;
             double progress = (double) generation / MAX_GENERATIONS;
             long estimatedTotal = (long) (elapsed / progress);
             long remaining = estimatedTotal - elapsed;
 
-            System.out.printf("Generation %d/%d (%.1f%%) - Best average turns: %.4f turns - Elapsed: %s - ETA: %s%n",
-                    generation, MAX_GENERATIONS, progress * 100, bestScore,
+            ParameterSet best = population.get(0);
+            double confidenceInterval = best.standardError * 1.96; // 95% confidence interval
+
+            System.out.printf("Generation %d/%d (%.1f%%) - Best average turns: %.4f turns (±%.4f) - Elapsed: %s - ETA: %s%n",
+                    generation, MAX_GENERATIONS, progress * 100, bestScore, confidenceInterval,
                     formatTime(elapsed), formatTime(remaining));
 
             if (improved) {
-                ParameterSet best = population.get(0);
                 System.out.println("  *** IMPROVEMENT *** Current best parameters:");
                 for (int i = 0; i < WEIGHT_COUNT; i++) {
                     System.out.printf("    %s=%.3f%n", WEIGHT_NAMES[i], best.weights[i]);
@@ -287,6 +323,7 @@ public class ParameterTuner {
         static class ParameterSet {
             double[] weights;
             double avgTurns = 0;
+            double standardError = 0;
 
             ParameterSet(double[] weights) {
                 this.weights = weights.clone();
@@ -295,11 +332,12 @@ public class ParameterTuner {
             ParameterSet copy() {
                 ParameterSet c = new ParameterSet(this.weights);
                 c.avgTurns = this.avgTurns;
+                c.standardError = this.standardError;
                 return c;
             }
 
             void print() {
-                System.out.printf("Best average turns: %.4f turns%n", avgTurns);
+                System.out.printf("Best average turns: %.4f turns (±%.4f)%n", avgTurns, standardError * 1.96);
                 for (int i = 0; i < WEIGHT_COUNT; i++) {
                     System.out.printf("  %s=%.3f%n", WEIGHT_NAMES[i], weights[i]);
                 }
