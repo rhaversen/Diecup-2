@@ -16,6 +16,7 @@ public class ImprovedWeightedSelect implements Strategy {
     private final double collectionWeight;
     private final double collectionScalar;
     private final double completionWeight;
+    private final double catchUpWeight;
 
     // default constructor using tuned defaults
     public ImprovedWeightedSelect(Statistics statistics) {
@@ -26,7 +27,8 @@ public class ImprovedWeightedSelect implements Strategy {
                 getDefaultRarityScalar(),
                 getDefaultCollectionWeight(),
                 getDefaultCollectionScalar(),
-                getDefaultCompletionWeight());
+                getDefaultCompletionWeight(),
+                getDefaultCatchUpWeight());
     }
 
     public ImprovedWeightedSelect(Statistics statistics,
@@ -36,7 +38,8 @@ public class ImprovedWeightedSelect implements Strategy {
             double rarityScalar,
             double collectionWeight,
             double collectionScalar,
-            double completionWeight) {
+            double completionWeight,
+            double catchUpWeight) {
         this.generalFrequencies = statistics.getGeneralFrequencies();
         this.opportunityWeight = opportunityWeight;
         this.rarityWeight = rarityWeight;
@@ -45,6 +48,7 @@ public class ImprovedWeightedSelect implements Strategy {
         this.collectionWeight = collectionWeight;
         this.collectionScalar = collectionScalar;
         this.completionWeight = completionWeight;
+        this.catchUpWeight = catchUpWeight;
     }
 
     public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {
@@ -80,12 +84,14 @@ public class ImprovedWeightedSelect implements Strategy {
         double opportunityValue = computeOpportunityValue(frequency, collectable, maxPoints);
         double collectionValue = computeCollectionValue(collectable);
         double completionBonus = computeCompletionBonus(pointsOnBoard, collectable, maxPoints);
+        double catchUpValue = computeCatchUpValue(pointsOnBoard, maxPoints);
 
         return rarityWeight * rarityValue
                 + progressWeight * progressValue
                 + opportunityWeight * opportunityValue
                 + collectionWeight * collectionValue
-                + completionWeight * completionBonus;
+                + completionWeight * completionBonus
+                + catchUpWeight * catchUpValue;
     }
 
     private double computeRarityValue(double frequency, int collectable) {
@@ -109,6 +115,10 @@ public class ImprovedWeightedSelect implements Strategy {
 
     private double computeCompletionBonus(int pointsOnBoard, int collectable, int maxPoints) {
         return (pointsOnBoard + collectable == maxPoints) ? 1.0 : 0.0;
+    }
+
+    private double computeCatchUpValue(int pointsOnBoard, int maxPoints) {
+        return 1.0 - ((double) pointsOnBoard / maxPoints);
     }
 
     private static double getDefaultOpportunityWeight() {
@@ -136,6 +146,10 @@ public class ImprovedWeightedSelect implements Strategy {
     }
 
     private static double getDefaultCompletionWeight() {
+        return 0;
+    }
+
+    private static double getDefaultCatchUpWeight() {
         return 0;
     }
 }

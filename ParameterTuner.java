@@ -32,7 +32,8 @@ public class ParameterTuner {
             "rarityScalar",
             "collectionWeight",
             "collectionScalar",
-            "completionWeight"
+            "completionWeight",
+            "catchUpWeight"
     };
     private static final int WEIGHT_COUNT = WEIGHT_NAMES.length;
 
@@ -180,7 +181,8 @@ public class ParameterTuner {
                     params.weights[3],
                     params.weights[4],
                     params.weights[5],
-                    params.weights[6]);
+                    params.weights[6],
+                    params.weights[7]);
 
             double totalTurns = 0;
             double sumSquares = 0;
