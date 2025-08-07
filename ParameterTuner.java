@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -19,6 +20,11 @@ public class ParameterTuner {
     private static final int TOURNAMENT_SIZE = 3; // Size of the tournament for parent selection
     private static final double MUTATION_RATE = 0.8; // Probability of mutation per weight
     private static final double MUTATION_STRENGTH = 0.1; // Standard deviation for mutation strength
+    private static final double VARIANCE_PENALTY   = 1.0;
+    private static final double WORSTCASE_PENALTY  = 0.5;
+    private static final double MEDIAN_PENALTY     = 0.5;
+    private static final double Q3_PENALTY         = 0.2;
+    private static final double Q1_PENALTY         = 0.2;
     private static final Random random = new Random();
 
     private static final int amountOfDice = 6; // Number of dice in the game
@@ -170,34 +176,55 @@ public class ParameterTuner {
                             bestScore, confirmedScore);
                 }
             }
+
+            // after all avgTurns & standardError are set on each ParameterSet:
+            for (ParameterSet p : population) {
+                p.score = p.avgTurns
+                        + VARIANCE_PENALTY   * p.standardError
+                        + MEDIAN_PENALTY     * p.median
+                        + Q1_PENALTY         * p.q1
+                        + Q3_PENALTY         * p.q3
+                        + WORSTCASE_PENALTY  * p.worstCase;
+            }
+            population.sort((a, b) -> Double.compare(a.score, b.score));
         }
 
         private double evaluateParameterSet(ParameterSet params, int runs) {
-            ImprovedWeightedSelect strategy = new ImprovedWeightedSelect(
-                    statistics,
-                    params.weights[0],
-                    params.weights[1],
-                    params.weights[2],
-                    params.weights[3],
-                    params.weights[4],
-                    params.weights[5],
-                    params.weights[6],
-                    params.weights[7]);
-
-            double totalTurns = 0;
-            double sumSquares = 0;
+            double totalTurns = 0, sumSquares = 0;
+            double[] samples = new double[runs];
             for (int run = 0; run < runs; run++) {
+                ImprovedWeightedSelect strategy = new ImprovedWeightedSelect(
+                        statistics,
+                        params.weights[0],
+                        params.weights[1],
+                        params.weights[2],
+                        params.weights[3],
+                        params.weights[4],
+                        params.weights[5],
+                        params.weights[6],
+                        params.weights[7]);
+
                 diecup.Game game = new diecup.Game(amountOfDice, sidesPerDie, strategy, false, false);
                 game.startGame();
                 double turns = game.getTurns();
+                samples[run] = turns;
                 totalTurns += turns;
-                sumSquares += turns * turns;
+                sumSquares  += turns * turns;
             }
 
             double mean = totalTurns / runs;
             double variance = (sumSquares / runs) - (mean * mean);
             params.standardError = Math.sqrt(variance / runs);
-            
+
+            Arrays.sort(samples);
+            params.q1        = samples[runs / 4];
+            int mid          = runs / 2;
+            params.median    = (runs % 2 == 0)
+                               ? (samples[mid - 1] + samples[mid]) / 2
+                               : samples[mid];
+            params.q3        = samples[(runs * 3) / 4];
+            params.worstCase = samples[runs - 1];
+
             return mean;
         }
 
@@ -324,8 +351,13 @@ public class ParameterTuner {
 
         static class ParameterSet {
             double[] weights;
-            double avgTurns = 0;
-            double standardError = 0;
+            double avgTurns       = 0;
+            double standardError  = 0;
+            double median         = 0;
+            double q1             = 0;
+            double q3             = 0;
+            double worstCase      = 0;
+            double score          = Double.MAX_VALUE;
 
             ParameterSet(double[] weights) {
                 this.weights = weights.clone();
@@ -333,8 +365,13 @@ public class ParameterTuner {
 
             ParameterSet copy() {
                 ParameterSet c = new ParameterSet(this.weights);
-                c.avgTurns = this.avgTurns;
+                c.avgTurns      = this.avgTurns;
                 c.standardError = this.standardError;
+                c.median        = this.median;
+                c.q1            = this.q1;
+                c.q3            = this.q3;
+                c.worstCase     = this.worstCase;
+                c.score         = this.score;
                 return c;
             }
 
