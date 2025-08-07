@@ -1,0 +1,44 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Main (Start Game)",
+            "request": "launch",
+            "mainClass": "Main",
+            "projectName": "Diecup-2_58f0a7ed",
+            "args": ["start"]
+        },
+        {
+            "type": "java",
+            "name": "Main (Statistics)",
+            "request": "launch",
+            "mainClass": "Main",
+            "projectName": "Diecup-2_58f0a7ed",
+            "args": ["statistics"]
+        },
+        {
+            "type": "java",
+            "name": "ParameterTuner",
+            "request": "launch",
+            "mainClass": "ParameterTuner",
+            "projectName": "Diecup-2_58f0a7ed"
+        },
+        {
+            "type": "java",
+            "name": "PerformanceAnalyzer",
+            "request": "launch",
+            "mainClass": "PerformanceAnalyzer",
+            "projectName": "Diecup-2_58f0a7ed"
+        }
+    ]
+}
