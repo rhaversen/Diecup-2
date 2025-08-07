@@ -26,14 +26,14 @@ public class ParameterTuner {
 
     // define weights to optimize
     private static final String[] WEIGHT_NAMES = {
-            "opportunityWeight",
+            "OpportunityWeight",
             "RarityWeight",
-            "progressWeight",
-            "rarityScalar",
-            "collectionWeight",
-            "collectionScalar",
-            "completionWeight",
-            "catchUpWeight"
+            "ProgressWeight",
+            "RarityScalar",
+            "CollectionWeight",
+            "CollectionScalar",
+            "CompletionWeight",
+            "CatchUpWeight"
     };
     private static final int WEIGHT_COUNT = WEIGHT_NAMES.length;
 

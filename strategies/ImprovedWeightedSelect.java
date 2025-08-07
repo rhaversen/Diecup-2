@@ -23,7 +23,7 @@ public class ImprovedWeightedSelect implements Strategy {
         this(statistics,
                 getDefaultOpportunityWeight(),
                 getDefaultRarityWeight(),
-                getDefaultprogressWeight(),
+                getDefaultProgressWeight(),
                 getDefaultRarityScalar(),
                 getDefaultCollectionWeight(),
                 getDefaultCollectionScalar(),
@@ -129,7 +129,7 @@ public class ImprovedWeightedSelect implements Strategy {
         return 0.345;
     }
 
-    private static double getDefaultprogressWeight() {
+    private static double getDefaultProgressWeight() {
         return 0.994;
     }
 
