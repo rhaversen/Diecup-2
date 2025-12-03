@@ -5,17 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "java",
-            "name": "Current File",
+            "name": "Plotter",
+            "type": "debugpy",
             "request": "launch",
-            "mainClass": "${file}"
+            "program": "plotter.py",
+            "console": "integratedTerminal"
         },
         {
             "type": "java",
             "name": "Main (Start Game)",
             "request": "launch",
             "mainClass": "Main",
-            "projectName": "Diecup-2_58f0a7ed",
             "args": ["start"]
         },
         {
@@ -23,22 +23,19 @@
             "name": "Main (Statistics)",
             "request": "launch",
             "mainClass": "Main",
-            "projectName": "Diecup-2_58f0a7ed",
             "args": ["statistics"]
         },
         {
             "type": "java",
             "name": "ParameterTuner",
             "request": "launch",
-            "mainClass": "ParameterTuner",
-            "projectName": "Diecup-2_58f0a7ed"
+            "mainClass": "ParameterTuner"
         },
         {
             "type": "java",
             "name": "PerformanceAnalyzer",
             "request": "launch",
-            "mainClass": "PerformanceAnalyzer",
-            "projectName": "Diecup-2_58f0a7ed"
+            "mainClass": "PerformanceAnalyzer"
         }
     ]
 }
