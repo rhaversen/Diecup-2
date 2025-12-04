@@ -25,3 +25,5 @@ gradle-app.setting
 
 # Ignore analysis results
 /analysis_results
+
+logs/

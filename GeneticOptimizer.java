@@ -1,6 +1,7 @@
 import java.util.*;
 import java.util.concurrent.*;
 
+import diecup.Logger;
 import diecup.Statistics;
 import strategies.ImprovedWeightedSelect;
 
@@ -64,6 +65,7 @@ public class GeneticOptimizer {
     
     private final Random random = new Random();
     private final Statistics statistics;
+    private final Logger logger;
     private final List<Individual> population = new ArrayList<>();
     
     private Individual globalBest = null;
@@ -73,22 +75,35 @@ public class GeneticOptimizer {
     // ===== MAIN =====
     
     public static void main(String[] args) {
-        System.out.println("=== Genetic Optimizer for ImprovedWeightedSelect ===\n");
-        
         GeneticOptimizer optimizer = new GeneticOptimizer();
+        optimizer.log("=== Genetic Optimizer for ImprovedWeightedSelect ===");
+        optimizer.log("");
+        
         Individual best = optimizer.run();
         
-        System.out.println("\n" + "=".repeat(60));
-        System.out.println("OPTIMIZATION COMPLETE");
-        System.out.println("=".repeat(60));
-        best.printDetails();
-        System.out.println("=".repeat(60));
+        optimizer.log("");
+        optimizer.log("=".repeat(60));
+        optimizer.log("OPTIMIZATION COMPLETE");
+        optimizer.log("=".repeat(60));
+        optimizer.printIndividualDetails(best);
+        optimizer.log("=".repeat(60));
+        optimizer.close();
     }
     
     // ===== CONSTRUCTOR =====
     
     public GeneticOptimizer() {
         this.statistics = new Statistics(DICE_COUNT, SIDES_PER_DIE);
+        this.logger = new Logger(true, Logger.generateLogFileName("genetic_optimizer"));
+        log("Log file: " + logger.getLogFilePath());
+    }
+    
+    private void log(String message) {
+        logger.log(message);
+    }
+    
+    private void close() {
+        logger.close();
     }
     
     // ===== MAIN OPTIMIZATION LOOP =====
@@ -100,7 +115,8 @@ public class GeneticOptimizer {
         initializePopulation();
         evaluatePopulation(0);
         
-        System.out.printf("Initial best: %.4f turns%n%n", globalBest.fitness);
+        log(String.format("Initial best: %.4f turns", globalBest.fitness));
+        log("");
         double previousBest = globalBest.fitness;
         
         // Evolution loop
@@ -115,14 +131,15 @@ public class GeneticOptimizer {
             previousBest = globalBest.fitness;
         }
         
-        System.out.printf("%nTotal time: %s%n", formatDuration(System.currentTimeMillis() - startTime));
+        log("");
+        log(String.format("Total time: %s", formatDuration(System.currentTimeMillis() - startTime)));
         return globalBest;
     }
     
     // ===== POPULATION MANAGEMENT =====
     
     private void initializePopulation() {
-        System.out.println("Initializing population...");
+        log("Initializing population...");
         
         // Seed with known good parameters from strategy defaults
         double[] knownGood = {
@@ -136,7 +153,7 @@ public class GeneticOptimizer {
             ImprovedWeightedSelect.getDefaultCatchUpWeight()
         };
         population.add(new Individual(knownGood));
-        System.out.println("Seeded with known good parameters from strategy defaults");
+        log("Seeded with known good parameters from strategy defaults");
         
         // Fill rest with random individuals
         for (int i = 1; i < POPULATION_SIZE; i++) {
@@ -201,7 +218,7 @@ public class GeneticOptimizer {
             boolean needsConfirmation = candidate.evaluationCount < INITIAL_EVALUATIONS + CONFIRMATION_EVALUATIONS;
             
             if (shouldConfirm && needsConfirmation) {
-                if (i == 0) System.out.println("  Confirming top candidates...");
+                if (i == 0) log("  Confirming top candidates...");
                 
                 // Run additional evaluations and combine
                 double oldFitness = candidate.fitness;
@@ -230,14 +247,14 @@ public class GeneticOptimizer {
             if (globalBest == null || candidate.fitness < globalBest.fitness) {
                 double improvement = globalBest != null ? globalBest.fitness - candidate.fitness : 0;
                 globalBest = candidate.copy();
-                System.out.printf("  New best: %.4f (improved by %.4f)%n", candidate.fitness, improvement);
+                log(String.format("  New best: %.4f (improved by %.4f)", candidate.fitness, improvement));
             } else {
-                System.out.printf("  Best confirmed: %.4f (current best: %.4f)%n", 
-                    candidate.fitness, globalBest.fitness);
+                log(String.format("  Best confirmed: %.4f (current best: %.4f)", 
+                    candidate.fitness, globalBest.fitness));
             }
         } else if (globalBest == null) {
             globalBest = candidate.copy();
-            System.out.printf("  Initial best (pending confirmation): %.4f%n", candidate.fitness);
+            log(String.format("  Initial best (pending confirmation): %.4f", candidate.fitness));
         }
     }
     
@@ -398,7 +415,7 @@ public class GeneticOptimizer {
             
             // Major diversity injection if very stuck
             if (stagnationCount > RESTART_THRESHOLD) {
-                System.out.println("  Stagnation detected - injecting diversity...");
+                log("  Stagnation detected - injecting diversity...");
                 injectDiversity(RESTART_FRACTION);
                 stagnationCount = 0;
                 mutationStrength = MUTATION_STRENGTH_INITIAL;
@@ -425,15 +442,15 @@ public class GeneticOptimizer {
         double progress = (double) generation / MAX_GENERATIONS;
         long eta = (long) (elapsed / progress) - elapsed;
         
-        System.out.printf("Gen %d/%d (%.0f%%) - Best: %.4f (±%.4f) - %s elapsed, ETA %s%n",
+        log(String.format("Gen %d/%d (%.0f%%) - Best: %.4f (±%.4f) - %s elapsed, ETA %s",
             generation, MAX_GENERATIONS, progress * 100,
             globalBest.fitness, globalBest.standardError * 1.96,
-            formatDuration(elapsed), formatDuration(eta));
+            formatDuration(elapsed), formatDuration(eta)));
         
         if (improved) {
-            System.out.println("  *** IMPROVEMENT ***");
+            log("  *** IMPROVEMENT ***");
             for (int i = 0; i < PARAM_COUNT; i++) {
-                System.out.printf("    %s = %.3f%n", PARAM_NAMES[i], globalBest.genes[i]);
+                log(String.format("    %s = %.3f", PARAM_NAMES[i], globalBest.genes[i]));
             }
         }
     }
@@ -479,13 +496,14 @@ public class GeneticOptimizer {
             this.isConfirmed = false;
         }
         
-        void printDetails() {
-            System.out.printf("Fitness: %.4f turns (±%.4f, %d evaluations)%n",
-                fitness, standardError * 1.96, evaluationCount);
-            System.out.println("Parameters:");
-            for (int i = 0; i < PARAM_NAMES.length; i++) {
-                System.out.printf("  %s = %.4f%n", PARAM_NAMES[i], genes[i]);
-            }
+    }
+    
+    private void printIndividualDetails(Individual ind) {
+        log(String.format("Fitness: %.4f turns (±%.4f, %d evaluations)",
+            ind.fitness, ind.standardError * 1.96, ind.evaluationCount));
+        log("Parameters:");
+        for (int i = 0; i < PARAM_NAMES.length; i++) {
+            log(String.format("  %s = %.4f", PARAM_NAMES[i], ind.genes[i]));
         }
     }
 }
