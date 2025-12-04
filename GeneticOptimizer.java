@@ -308,7 +308,20 @@ public class GeneticOptimizer {
                 globalBest.standardError = result.candidateSE;
                 totalGamesPlayed += CONFIRMATION_GAMES;
                 candidate.isConfirmed = true;
-            } else if (result.candidateWins) {
+            } 
+            // Also accept if candidate's head-to-head mean is better than globalBest's recorded fitness
+            // This handles the case where both strategies improved on fresh seeds
+            else if (result.candidateMean < globalBest.fitness) {
+                log(String.format("  *** Accepting candidate: %.4f -> %.4f (h2h: %.4f vs %.4f, p=%.4f) ***",
+                    globalBest.fitness, result.candidateMean, result.candidateMean, result.bestMean, result.pValue));
+                
+                globalBest = candidate.copy();
+                globalBest.fitness = result.candidateMean;
+                globalBest.standardError = result.candidateSE;
+                totalGamesPlayed += CONFIRMATION_GAMES;
+                candidate.isConfirmed = true;
+            }
+            else if (result.candidateWins) {
                 log(String.format("  Candidate %.4f not significant vs %.4f (p=%.4f)",
                     result.candidateMean, result.bestMean, result.pValue));
             }
