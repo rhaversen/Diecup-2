@@ -9,23 +9,36 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import strategies.Strategy;
 
 public class Calculations {
     private Logger logger = new Logger(true);
+    private static final long DEFAULT_SEED = 42;  // Fixed seed for reproducibility
 
     public void calculateAverageTurns(Strategy strategy) {
+        calculateAverageTurns(strategy, DEFAULT_SEED);
+    }
+
+    public void calculateAverageTurns(Strategy strategy, long seed) {
         int simulationCount = 100000;
         int numberOfDice = 6;
         int sides = 6;
         List<Integer> turns = new ArrayList<>();
 
+        // Generate seeds for each game (derived from master seed for reproducibility)
+        Random masterRandom = new Random(seed);
+        long[] gameSeeds = new long[simulationCount];
+        for (int i = 0; i < simulationCount; i++) {
+            gameSeeds[i] = masterRandom.nextLong();
+        }
+
         long startTime = System.currentTimeMillis();
         long lastProgressUpdate = startTime;
 
         logger.log("Starting simulation with " + simulationCount + " iterations using "
-                + strategy.getClass().getSimpleName());
+                + strategy.getClass().getSimpleName() + " (seed=" + seed + ")");
 
         for (int i = 0; i < simulationCount; i++) {
             long currentTime = System.currentTimeMillis();
@@ -43,7 +56,8 @@ public class Calculations {
                 lastProgressUpdate = currentTime;
             }
 
-            Game game = new Game(numberOfDice, sides, strategy, false, false);
+            Random gameRng = new Random(gameSeeds[i]);
+            Game game = new Game(numberOfDice, sides, strategy, false, false, gameRng);
             game.startGame();
             turns.add(game.getTurns());
         }
