@@ -9,10 +9,13 @@ import strategies.ImprovedWeightedSelect;
  * Genetic Algorithm optimizer for tuning strategy parameters.
  * 
  * Features:
+ * - **Common Random Numbers (CRN)**: All individuals in a generation are evaluated
+ *   on the same random seeds, ensuring fair comparisons and reducing selection noise.
  * - Tournament selection with elitism
  * - Multiple crossover strategies (blend, average, uniform)
  * - Per-gene Gaussian mutation with adaptive strength
- * - Confirmation evaluation to reduce noise in best selection
+ * - Head-to-head confirmation against current best using paired testing
+ * - Statistical significance testing before accepting improvements
  * - Periodic elite re-evaluation to prevent stale estimates
  * - Diversity injection and stagnation detection
  */
@@ -35,11 +38,11 @@ public class GeneticOptimizer {
     private static final double MUTATION_STRENGTH_MAX = 0.5;
     private static final double LARGE_MUTATION_RATE = 0.08;  // Chance to reset a gene completely
     
-    /** Evaluation Settings */
-    private static final int INITIAL_EVALUATIONS = 20_000;
-    private static final int CONFIRMATION_EVALUATIONS = 30_000;
-    private static final int ELITE_REEVALUATION_INTERVAL = 5;  // Re-evaluate elites every N generations
-    private static final int TOP_N_TO_CONFIRM = 10;  // Confirm top N candidates - confirmation is cheap (~1s each)
+    /** Evaluation Settings - Common Random Numbers */
+    private static final int GAMES_PER_GENERATION = 5_000;     // Games per individual per generation (using shared seeds)
+    private static final int CONFIRMATION_GAMES = 20_000;       // Additional games for head-to-head confirmation
+    private static final double SIGNIFICANCE_THRESHOLD = 0.05;  // p-value threshold for accepting improvement (5%)
+    private static final int TOP_N_TO_CONFIRM = 5;              // Confirm top N candidates against current best
     
     /** Stagnation Settings */
     private static final int STAGNATION_THRESHOLD = 5;   // Increase mutation after N generations without improvement
@@ -65,7 +68,7 @@ public class GeneticOptimizer {
     
     // ===== INSTANCE FIELDS =====
     
-    private final Random random = new Random();
+    private final Random masterRandom = new Random();
     private final Statistics statistics;
     private final Logger logger;
     private final List<Individual> population = new ArrayList<>();
@@ -73,12 +76,14 @@ public class GeneticOptimizer {
     private Individual globalBest = null;
     private int stagnationCount = 0;
     private double mutationStrength = MUTATION_STRENGTH_INITIAL;
+    private int totalGamesPlayed = 0;  // Track total compute spent on best
     
     // ===== MAIN =====
     
     public static void main(String[] args) {
         GeneticOptimizer optimizer = new GeneticOptimizer();
         optimizer.log("=== Genetic Optimizer for ImprovedWeightedSelect ===");
+        optimizer.log("Using Common Random Numbers (CRN) for fair comparison");
         optimizer.log("");
         
         Individual best = optimizer.run();
@@ -174,26 +179,41 @@ public class GeneticOptimizer {
         double[] genes = new double[PARAM_COUNT];
         for (int i = 0; i < PARAM_COUNT; i++) {
             // Range -1 to 2 to allow exploration in all directions
-            genes[i] = random.nextDouble() * 3.0 - 1.0;
+            genes[i] = masterRandom.nextDouble() * 3.0 - 1.0;
         }
         return new Individual(genes);
     }
     
-    // ===== EVALUATION =====
+    // ===== EVALUATION WITH COMMON RANDOM NUMBERS =====
     
+    /**
+     * Generate seeds for this generation. All individuals will be evaluated
+     * on the same set of random seeds, ensuring fair comparison.
+     */
+    private long[] generateSeeds(int count) {
+        long[] seeds = new long[count];
+        for (int i = 0; i < count; i++) {
+            seeds[i] = masterRandom.nextLong();
+        }
+        return seeds;
+    }
+    
+    /**
+     * Evaluate all individuals using Common Random Numbers.
+     * Each individual plays the same games (same seeds), making comparison fair.
+     */
     private void evaluatePopulation(int generation) {
+        // Generate shared seeds for this generation
+        long[] seeds = generateSeeds(GAMES_PER_GENERATION);
+        
         ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
         List<Future<?>> futures = new ArrayList<>();
         
-        // Determine which individuals need evaluation
-        boolean reEvaluateElites = (generation % ELITE_REEVALUATION_INTERVAL == 0) && generation > 0;
-        
+        // Evaluate all non-elite individuals (elites keep their accumulated stats)
         for (Individual ind : population) {
-            boolean needsEval = ind.evaluationCount == 0 || (reEvaluateElites && ind.isElite);
-            if (needsEval) {
+            if (!ind.isElite) {
                 futures.add(executor.submit(() -> {
-                    evaluate(ind, INITIAL_EVALUATIONS);
-                    ind.isElite = false;
+                    evaluateWithSeeds(ind, seeds);
                 }));
             }
         }
@@ -211,77 +231,24 @@ public class GeneticOptimizer {
         // Sort by fitness (lower is better)
         population.sort(Comparator.comparingDouble(ind -> ind.fitness));
         
-        // Confirm best candidate if promising
-        confirmBestCandidate();
+        // Confirm top candidates using head-to-head comparison against global best
+        confirmTopCandidates();
     }
     
-    private void confirmBestCandidate() {
-        // Confirm top N candidates to reduce false negatives
-        // A good candidate might have gotten unlucky in initial evaluation
-        for (int i = 0; i < Math.min(TOP_N_TO_CONFIRM, population.size()); i++) {
-            Individual candidate = population.get(i);
-            
-            // Should we confirm this candidate?
-            boolean shouldConfirm = globalBest == null || 
-                candidate.fitness < globalBest.fitness + globalBest.standardError * 2;  // Wider threshold
-            
-            boolean needsConfirmation = candidate.evaluationCount < INITIAL_EVALUATIONS + CONFIRMATION_EVALUATIONS;
-            
-            if (shouldConfirm && needsConfirmation) {
-                if (i == 0) log("  Confirming top candidates...");
-                
-                // Run additional evaluations and combine
-                double oldFitness = candidate.fitness;
-                int oldCount = candidate.evaluationCount;
-                
-                evaluate(candidate, CONFIRMATION_EVALUATIONS);
-                
-                // Weighted average
-                double newFitness = (oldFitness * oldCount + candidate.fitness * CONFIRMATION_EVALUATIONS) 
-                        / (oldCount + CONFIRMATION_EVALUATIONS);
-                candidate.fitness = newFitness;
-                candidate.evaluationCount = oldCount + CONFIRMATION_EVALUATIONS;
-                candidate.standardError *= Math.sqrt((double) oldCount / candidate.evaluationCount);
-                candidate.isConfirmed = true;  // Mark as having high-quality estimate
-            }
-        }
-        
-        // Re-sort after all confirmations
-        population.sort(Comparator.comparingDouble(ind -> ind.fitness));
-        
-        // Update global best - check the top candidate after sorting
-        Individual candidate = population.get(0);
-        boolean isFullyConfirmed = candidate.evaluationCount >= INITIAL_EVALUATIONS + CONFIRMATION_EVALUATIONS;
-        
-        if (isFullyConfirmed) {
-            if (globalBest == null || candidate.fitness < globalBest.fitness) {
-                double improvement = globalBest != null ? globalBest.fitness - candidate.fitness : 0;
-                globalBest = candidate.copy();
-                log(String.format("  New best: %.4f (improved by %.4f)", candidate.fitness, improvement));
-            } else {
-                log(String.format("  Best confirmed: %.4f (current best: %.4f)", 
-                    candidate.fitness, globalBest.fitness));
-            }
-        } else if (globalBest == null) {
-            globalBest = candidate.copy();
-            log(String.format("  Initial best (pending confirmation): %.4f", candidate.fitness));
-        }
-    }
-    
-    private void evaluate(Individual ind, int runs) {
+    /**
+     * Evaluate an individual on a specific set of seeds.
+     * This ensures all individuals face the same "luck".
+     */
+    private void evaluateWithSeeds(Individual ind, long[] seeds) {
         double sum = 0;
         double sumSq = 0;
+        int runs = seeds.length;
         
-        for (int i = 0; i < runs; i++) {
-            ImprovedWeightedSelect strategy = new ImprovedWeightedSelect(
-                statistics,
-                ind.genes[0], ind.genes[1], ind.genes[2], ind.genes[3],
-                ind.genes[4], ind.genes[5], ind.genes[6], ind.genes[7],
-                ind.genes[8], ind.genes[9], ind.genes[10], ind.genes[11],
-                ind.genes[12], ind.genes[13], ind.genes[14]
-            );
-            
-            diecup.Game game = new diecup.Game(DICE_COUNT, SIDES_PER_DIE, strategy, false, false);
+        ImprovedWeightedSelect strategy = createStrategy(ind);
+        
+        for (long seed : seeds) {
+            Random gameRng = new Random(seed);
+            diecup.Game game = new diecup.Game(DICE_COUNT, SIDES_PER_DIE, strategy, false, false, gameRng);
             game.startGame();
             double turns = game.getTurns();
             
@@ -293,6 +260,181 @@ public class GeneticOptimizer {
         double variance = (sumSq / runs) - (ind.fitness * ind.fitness);
         ind.standardError = Math.sqrt(variance / runs);
         ind.evaluationCount = runs;
+    }
+    
+    /**
+     * Confirm top candidates using head-to-head paired testing against global best.
+     * This reduces the chance of false positives from lucky seeds.
+     */
+    private void confirmTopCandidates() {
+        if (globalBest == null) {
+            // First generation - just pick the best
+            Individual best = population.get(0);
+            globalBest = best.copy();
+            totalGamesPlayed = best.evaluationCount;
+            log(String.format("  Initial best: %.4f turns", globalBest.fitness));
+            return;
+        }
+        
+        // Test top candidates head-to-head against global best
+        log("  Confirming top candidates against current best...");
+        
+        for (int i = 0; i < Math.min(TOP_N_TO_CONFIRM, population.size()); i++) {
+            Individual candidate = population.get(i);
+            
+            // Skip if candidate doesn't look promising (within 2 SE of best)
+            if (candidate.fitness > globalBest.fitness + globalBest.standardError * 2) {
+                continue;
+            }
+            
+            // Head-to-head comparison using paired testing
+            HeadToHeadResult result = headToHeadComparison(candidate, globalBest, CONFIRMATION_GAMES);
+            
+            if (result.candidateWins && result.pValue < SIGNIFICANCE_THRESHOLD) {
+                log(String.format("  *** Confirmed improvement: %.4f -> %.4f (p=%.4f, diff=%.4f±%.4f) ***",
+                    globalBest.fitness, result.candidateMean, result.pValue,
+                    result.meanDifference, result.standardErrorDiff * 1.96));
+                
+                // Update global best with accumulated stats
+                globalBest = candidate.copy();
+                globalBest.fitness = result.candidateMean;
+                globalBest.standardError = result.candidateSE;
+                totalGamesPlayed += CONFIRMATION_GAMES;
+                candidate.isConfirmed = true;
+            } else if (result.candidateWins) {
+                log(String.format("  Candidate %.4f not significant vs %.4f (p=%.4f)",
+                    result.candidateMean, result.bestMean, result.pValue));
+            }
+        }
+    }
+    
+    /**
+     * Perform head-to-head comparison using paired t-test.
+     * Both strategies play the exact same games (same seeds).
+     */
+    private HeadToHeadResult headToHeadComparison(Individual candidate, Individual best, int games) {
+        long[] seeds = generateSeeds(games);
+        
+        ImprovedWeightedSelect candidateStrategy = createStrategy(candidate);
+        ImprovedWeightedSelect bestStrategy = createStrategy(best);
+        
+        double[] candidateScores = new double[games];
+        double[] bestScores = new double[games];
+        double[] differences = new double[games];
+        
+        // Run games in parallel, but ensure paired comparison
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        List<Future<?>> futures = new ArrayList<>();
+        
+        // Split into chunks for parallel execution
+        int chunkSize = Math.max(1, games / THREAD_COUNT);
+        for (int start = 0; start < games; start += chunkSize) {
+            final int chunkStart = start;
+            final int chunkEnd = Math.min(start + chunkSize, games);
+            
+            futures.add(executor.submit(() -> {
+                for (int i = chunkStart; i < chunkEnd; i++) {
+                    Random rng1 = new Random(seeds[i]);
+                    Random rng2 = new Random(seeds[i]);  // Same seed!
+                    
+                    diecup.Game game1 = new diecup.Game(DICE_COUNT, SIDES_PER_DIE, candidateStrategy, false, false, rng1);
+                    diecup.Game game2 = new diecup.Game(DICE_COUNT, SIDES_PER_DIE, bestStrategy, false, false, rng2);
+                    
+                    game1.startGame();
+                    game2.startGame();
+                    
+                    candidateScores[i] = game1.getTurns();
+                    bestScores[i] = game2.getTurns();
+                    differences[i] = candidateScores[i] - bestScores[i];  // Negative = candidate wins
+                }
+            }));
+        }
+        
+        for (Future<?> f : futures) {
+            try { f.get(); } catch (Exception e) { throw new RuntimeException(e); }
+        }
+        executor.shutdown();
+        
+        // Calculate statistics
+        double candidateMean = mean(candidateScores);
+        double bestMean = mean(bestScores);
+        double meanDiff = mean(differences);
+        double seDiff = standardError(differences);
+        
+        // Paired t-test: t = meanDiff / seDiff
+        double tStat = meanDiff / seDiff;
+        double pValue = tTestPValue(tStat, games - 1);
+        
+        HeadToHeadResult result = new HeadToHeadResult();
+        result.candidateMean = candidateMean;
+        result.bestMean = bestMean;
+        result.candidateSE = standardError(candidateScores);
+        result.meanDifference = meanDiff;
+        result.standardErrorDiff = seDiff;
+        result.pValue = pValue;
+        result.candidateWins = meanDiff < 0;  // Lower is better
+        
+        return result;
+    }
+    
+    private static class HeadToHeadResult {
+        double candidateMean;
+        double bestMean;
+        double candidateSE;
+        double meanDifference;    // Negative means candidate is better
+        double standardErrorDiff; // SE of the difference (for confidence interval)
+        double pValue;
+        boolean candidateWins;
+    }
+    
+    private ImprovedWeightedSelect createStrategy(Individual ind) {
+        return new ImprovedWeightedSelect(
+            statistics,
+            ind.genes[0], ind.genes[1], ind.genes[2], ind.genes[3],
+            ind.genes[4], ind.genes[5], ind.genes[6], ind.genes[7],
+            ind.genes[8], ind.genes[9], ind.genes[10], ind.genes[11],
+            ind.genes[12], ind.genes[13], ind.genes[14]
+        );
+    }
+    
+    // ===== STATISTICAL HELPERS =====
+    
+    private static double mean(double[] values) {
+        double sum = 0;
+        for (double v : values) sum += v;
+        return sum / values.length;
+    }
+    
+    private static double standardError(double[] values) {
+        double m = mean(values);
+        double sumSq = 0;
+        for (double v : values) sumSq += (v - m) * (v - m);
+        double variance = sumSq / (values.length - 1);
+        return Math.sqrt(variance / values.length);
+    }
+    
+    /**
+     * Approximate p-value for two-tailed t-test using normal approximation
+     * (good enough for large sample sizes like ours).
+     */
+    private static double tTestPValue(double t, int df) {
+        // For large df, t-distribution ≈ normal distribution
+        // Use complementary error function approximation
+        double absT = Math.abs(t);
+        // Approximation of 2 * (1 - Phi(|t|)) for standard normal
+        double p = 2.0 * (1.0 - normalCDF(absT));
+        return p;
+    }
+    
+    /**
+     * Standard normal CDF approximation (Abramowitz and Stegun).
+     */
+    private static double normalCDF(double x) {
+        if (x < 0) return 1.0 - normalCDF(-x);
+        double t = 1.0 / (1.0 + 0.2316419 * x);
+        double d = 0.3989423 * Math.exp(-x * x / 2.0);
+        double p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+        return 1.0 - p;
     }
     
     // ===== EVOLUTION =====
@@ -350,7 +492,7 @@ public class GeneticOptimizer {
         // Tournament selection - pick best fitness from random candidates
         Individual best = null;
         for (int i = 0; i < TOURNAMENT_SIZE; i++) {
-            Individual candidate = population.get(random.nextInt(population.size()));
+            Individual candidate = population.get(masterRandom.nextInt(population.size()));
             if (best == null || candidate.fitness < best.fitness) {
                 best = candidate;
             }
@@ -363,10 +505,10 @@ public class GeneticOptimizer {
     private Individual crossover(Individual p1, Individual p2) {
         double[] childGenes = new double[PARAM_COUNT];
         
-        int method = random.nextInt(3);
+        int method = masterRandom.nextInt(3);
         switch (method) {
             case 0 -> { // Blend crossover
-                double alpha = random.nextDouble();
+                double alpha = masterRandom.nextDouble();
                 for (int i = 0; i < PARAM_COUNT; i++) {
                     childGenes[i] = p1.genes[i] + alpha * (p2.genes[i] - p1.genes[i]);
                 }
@@ -378,7 +520,7 @@ public class GeneticOptimizer {
             }
             case 2 -> { // Uniform crossover
                 for (int i = 0; i < PARAM_COUNT; i++) {
-                    childGenes[i] = random.nextBoolean() ? p1.genes[i] : p2.genes[i];
+                    childGenes[i] = masterRandom.nextBoolean() ? p1.genes[i] : p2.genes[i];
                 }
             }
         }
@@ -393,16 +535,16 @@ public class GeneticOptimizer {
         
         // Per-gene Gaussian mutation
         for (int i = 0; i < PARAM_COUNT; i++) {
-            if (random.nextDouble() < MUTATION_RATE_PER_GENE) {
-                ind.genes[i] = ind.genes[i] + random.nextGaussian() * mutationStrength;
+            if (masterRandom.nextDouble() < MUTATION_RATE_PER_GENE) {
+                ind.genes[i] = ind.genes[i] + masterRandom.nextGaussian() * mutationStrength;
                 mutated = true;
             }
         }
         
         // Occasional large mutation (exploration) - range -1 to 2
-        if (random.nextDouble() < LARGE_MUTATION_RATE) {
-            int idx = random.nextInt(PARAM_COUNT);
-            ind.genes[idx] = random.nextDouble() * 3.0 - 1.0;
+        if (masterRandom.nextDouble() < LARGE_MUTATION_RATE) {
+            int idx = masterRandom.nextInt(PARAM_COUNT);
+            ind.genes[idx] = masterRandom.nextDouble() * 3.0 - 1.0;
             mutated = true;
         }
         
@@ -450,10 +592,10 @@ public class GeneticOptimizer {
         double progress = (double) generation / MAX_GENERATIONS;
         long eta = (long) (elapsed / progress) - elapsed;
         
-        log(String.format("Gen %d/%d (%.0f%%) - Best: %.4f (±%.4f) - %s elapsed, ETA %s",
+        log(String.format("Gen %d/%d (%.0f%%) - Best: %.4f (±%.4f) - %s elapsed, ETA %s - %d total games on best",
             generation, MAX_GENERATIONS, progress * 100,
             globalBest.fitness, globalBest.standardError * 1.96,
-            formatDuration(elapsed), formatDuration(eta)));
+            formatDuration(elapsed), formatDuration(eta), totalGamesPlayed));
         
         if (improved) {
             log("  *** IMPROVEMENT ***");

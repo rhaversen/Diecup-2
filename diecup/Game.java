@@ -2,6 +2,7 @@ package diecup;
 
 import strategies.Strategy;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.Scanner;
 
 public class Game {
@@ -12,14 +13,29 @@ public class Game {
     private int sidesPerDie;
     private boolean waitForUserInput;
     private Logger logger;
+    private Random rng;  // Optional seeded random for reproducible games
 
     public Game(int numberOfDice, int sidesPerDie, Strategy strategy, boolean waitForUserInput, boolean verbose) {
+        this(numberOfDice, sidesPerDie, strategy, waitForUserInput, verbose, null);
+    }
+    
+    /**
+     * Create a game with optional seeded randomness for reproducibility.
+     * @param numberOfDice number of dice
+     * @param sidesPerDie sides per die
+     * @param strategy the strategy to use
+     * @param waitForUserInput whether to wait for user input
+     * @param verbose whether to log verbose output
+     * @param rng Random instance for reproducible games, or null for default randomness
+     */
+    public Game(int numberOfDice, int sidesPerDie, Strategy strategy, boolean waitForUserInput, boolean verbose, Random rng) {
         scoreboard = new Scoreboard();
         turns = 0;
         this.strategy = strategy;
         this.numberOfDice = numberOfDice;
         this.sidesPerDie = sidesPerDie;
         this.waitForUserInput = waitForUserInput;
+        this.rng = rng;
         logger = new Logger(verbose);
     }
 
@@ -45,7 +61,7 @@ public class Game {
     }
 
     public void playTurn() {
-        DieCup dieCup = new DieCup(numberOfDice, sidesPerDie);
+        DieCup dieCup = new DieCup(numberOfDice, sidesPerDie, rng);
         int selectedNumber = strategy.getSelectedNumber(dieCup.getValuesMap(), scoreboard);
         logger.info("Valgt nummer: " + selectedNumber);
         collectPoints(dieCup, selectedNumber);
@@ -102,7 +118,7 @@ public class Game {
         } else {
             // Recursively collect points until no more dice can be removed
             logger.info("Slår igen med " + diceRemainingAfterCollection + " terninger", 1);
-            DieCup newDieCup = new DieCup(diceRemainingAfterCollection, sidesPerDie);
+            DieCup newDieCup = new DieCup(diceRemainingAfterCollection, sidesPerDie, rng);
             collectPoints(newDieCup, selectedNumber);
         }
     }

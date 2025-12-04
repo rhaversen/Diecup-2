@@ -2,6 +2,7 @@ package diecup;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class DieCup {
@@ -9,10 +10,26 @@ public class DieCup {
     private Map<Integer, Integer> valuesMap;
 
     public DieCup(int numberOfDice, int sides) {
+        this(numberOfDice, sides, null);
+    }
+    
+    /**
+     * Create a DieCup with optional seeded randomness.
+     * @param numberOfDice number of dice to roll
+     * @param sides number of sides per die
+     * @param rng Random instance to use, or null for ThreadLocalRandom
+     */
+    public DieCup(int numberOfDice, int sides, Random rng) {
         diceValues = new int[numberOfDice];
-        ThreadLocalRandom rng = ThreadLocalRandom.current();
-        for (int i = 0; i < numberOfDice; i++) {
-            diceValues[i] = rng.nextInt(sides) + 1;
+        if (rng == null) {
+            ThreadLocalRandom tlr = ThreadLocalRandom.current();
+            for (int i = 0; i < numberOfDice; i++) {
+                diceValues[i] = tlr.nextInt(sides) + 1;
+            }
+        } else {
+            for (int i = 0; i < numberOfDice; i++) {
+                diceValues[i] = rng.nextInt(sides) + 1;
+            }
         }
         generateValuesMap();
     }
