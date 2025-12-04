@@ -57,7 +57,9 @@ public class GeneticOptimizer {
     /** Parameter Names (for display) */
     private static final String[] PARAM_NAMES = {
         "OpportunityWeight", "RarityWeight", "ProgressWeight", "RarityScalar",
-        "CollectionWeight", "CollectionScalar", "CompletionWeight", "CatchUpWeight"
+        "CollectionWeight", "CollectionScalar", "CompletionWeight", "CatchUpWeight",
+        "PairPenalty", "DiceEfficiencyWeight", "VarianceWeight", "GameProgressWeight",
+        "NearCompletionBonus", "FreeTurnWeight", "AllDiceBonusWeight"
     };
     private static final int PARAM_COUNT = PARAM_NAMES.length;
     
@@ -150,7 +152,14 @@ public class GeneticOptimizer {
             ImprovedWeightedSelect.getDefaultCollectionWeight(),
             ImprovedWeightedSelect.getDefaultCollectionScalar(),
             ImprovedWeightedSelect.getDefaultCompletionWeight(),
-            ImprovedWeightedSelect.getDefaultCatchUpWeight()
+            ImprovedWeightedSelect.getDefaultCatchUpWeight(),
+            ImprovedWeightedSelect.getDefaultPairPenalty(),
+            ImprovedWeightedSelect.getDefaultDiceEfficiencyWeight(),
+            ImprovedWeightedSelect.getDefaultVarianceWeight(),
+            ImprovedWeightedSelect.getDefaultGameProgressWeight(),
+            ImprovedWeightedSelect.getDefaultNearCompletionBonus(),
+            ImprovedWeightedSelect.getDefaultFreeTurnWeight(),
+            ImprovedWeightedSelect.getDefaultAllDiceBonusWeight()
         };
         population.add(new Individual(knownGood));
         log("Seeded with known good parameters from strategy defaults");
@@ -266,7 +275,9 @@ public class GeneticOptimizer {
             ImprovedWeightedSelect strategy = new ImprovedWeightedSelect(
                 statistics,
                 ind.genes[0], ind.genes[1], ind.genes[2], ind.genes[3],
-                ind.genes[4], ind.genes[5], ind.genes[6], ind.genes[7]
+                ind.genes[4], ind.genes[5], ind.genes[6], ind.genes[7],
+                ind.genes[8], ind.genes[9], ind.genes[10], ind.genes[11],
+                ind.genes[12], ind.genes[13], ind.genes[14]
             );
             
             diecup.Game game = new diecup.Game(DICE_COUNT, SIDES_PER_DIE, strategy, false, false);
