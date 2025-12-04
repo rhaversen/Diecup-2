@@ -44,6 +44,12 @@ public class GeneticOptimizer {
     private static final double SIGNIFICANCE_THRESHOLD = 0.05;  // p-value threshold for accepting improvement (5%)
     private static final int TOP_N_TO_CONFIRM = 5;              // Confirm top N candidates against current best
     
+    /** Fitness Component Weights (must sum to 1.0 for interpretability) */
+    private static final double MEAN_WEIGHT = 0.50;      // Weight for mean turns (primary objective)
+    private static final double VARIANCE_WEIGHT = 0.15;  // Weight for variance (consistency)
+    private static final double MEDIAN_WEIGHT = 0.20;    // Weight for median (typical performance)
+    private static final double Q3_WEIGHT = 0.15;        // Weight for 75th percentile (worst-case)
+    
     /** Stagnation Settings */
     private static final int STAGNATION_THRESHOLD = 5;   // Increase mutation after N generations without improvement
     private static final int RESTART_THRESHOLD = 20;     // Inject diversity after N generations without improvement
@@ -246,33 +252,41 @@ public class GeneticOptimizer {
     /**
      * Evaluate an individual on a specific set of seeds.
      * This ensures all individuals face the same "luck".
+     * Computes composite fitness from mean, variance, median, and Q3.
      */
     private void evaluateWithSeeds(Individual ind, long[] seeds) {
-        double sum = 0;
-        double sumSq = 0;
         int runs = seeds.length;
+        double[] scores = new double[runs];
         
         ImprovedWeightedSelect strategy = createStrategy(ind);
         
-        for (long seed : seeds) {
-            Random gameRng = new Random(seed);
+        for (int i = 0; i < runs; i++) {
+            Random gameRng = new Random(seeds[i]);
             diecup.Game game = new diecup.Game(DICE_COUNT, SIDES_PER_DIE, strategy, false, false, gameRng);
             game.startGame();
-            double turns = game.getTurns();
-            
-            sum += turns;
-            sumSq += turns * turns;
+            scores[i] = game.getTurns();
         }
         
-        ind.fitness = sum / runs;
-        double variance = (sumSq / runs) - (ind.fitness * ind.fitness);
-        ind.standardError = Math.sqrt(variance / runs);
+        // Calculate all statistics
+        ind.meanTurns = mean(scores);
+        ind.variance = variance(scores);
+        ind.median = percentile(scores, 50);
+        ind.q3 = percentile(scores, 75);
+        ind.standardError = Math.sqrt(ind.variance / runs);
         ind.evaluationCount = runs;
+        
+        // Composite fitness: weighted combination (lower is better for all components)
+        // Normalize variance by taking sqrt to put it on same scale as turns
+        ind.fitness = MEAN_WEIGHT * ind.meanTurns
+                    + VARIANCE_WEIGHT * Math.sqrt(ind.variance)
+                    + MEDIAN_WEIGHT * ind.median
+                    + Q3_WEIGHT * ind.q3;
     }
     
     /**
      * Confirm top candidates using head-to-head paired testing against global best.
      * This reduces the chance of false positives from lucky seeds.
+     * Uses composite fitness (mean + variance + median + Q3) for comparison.
      */
     private void confirmTopCandidates() {
         if (globalBest == null) {
@@ -280,7 +294,9 @@ public class GeneticOptimizer {
             Individual best = population.get(0);
             globalBest = best.copy();
             totalGamesPlayed = best.evaluationCount;
-            log(String.format("  Initial best: %.4f turns", globalBest.fitness));
+            log(String.format("  Initial best: fit=%.4f (mean=%.2f, var=%.2f, med=%.2f, Q3=%.2f)",
+                globalBest.fitness, globalBest.meanTurns, globalBest.variance, 
+                globalBest.median, globalBest.q3));
             return;
         }
         
@@ -298,41 +314,58 @@ public class GeneticOptimizer {
             // Head-to-head comparison using paired testing
             HeadToHeadResult result = headToHeadComparison(candidate, globalBest, CONFIRMATION_GAMES);
             
-            // Accept if candidate significantly beats globalBest in head-to-head
+            // Accept if candidate significantly beats globalBest in head-to-head (composite fitness)
             if (result.candidateWins && result.pValue < SIGNIFICANCE_THRESHOLD) {
-                log(String.format("  *** Confirmed improvement: %.4f -> %.4f (p=%.4f, diff=%.4f±%.4f) ***",
-                    globalBest.fitness, result.candidateMean, result.pValue,
-                    result.meanDifference, result.standardErrorDiff * 1.96));
+                log(String.format("  *** Confirmed improvement: fit %.4f -> %.4f (p=%.4f) ***",
+                    globalBest.fitness, result.candidateFitness, result.pValue));
+                log(String.format("      mean: %.2f->%.2f, var: %.2f->%.2f, med: %.2f->%.2f, Q3: %.2f->%.2f",
+                    globalBest.meanTurns, result.candidateMean,
+                    globalBest.variance, result.candidateVariance,
+                    globalBest.median, result.candidateMedian,
+                    globalBest.q3, result.candidateQ3));
                 
-                // Update global best with accumulated stats
-                globalBest = candidate.copy();
-                globalBest.fitness = result.candidateMean;
-                globalBest.standardError = result.candidateSE;
+                // Update global best with new stats
+                updateGlobalBest(candidate, result);
                 totalGamesPlayed += CONFIRMATION_GAMES;
                 candidate.isConfirmed = true;
             } 
-            // Also accept if candidate's head-to-head mean is better than globalBest's recorded fitness
-            // This handles the case where both strategies improved on fresh seeds
-            else if (result.candidateMean < globalBest.fitness) {
-                log(String.format("  *** Accepting candidate: %.4f -> %.4f (h2h: %.4f vs %.4f, p=%.4f) ***",
-                    globalBest.fitness, result.candidateMean, result.candidateMean, result.bestMean, result.pValue));
+            // Also accept if candidate's composite fitness is better than globalBest's recorded fitness
+            else if (result.candidateFitness < globalBest.fitness) {
+                log(String.format("  *** Accepting candidate: fit %.4f -> %.4f (h2h: %.4f vs %.4f) ***",
+                    globalBest.fitness, result.candidateFitness, 
+                    result.candidateFitness, result.bestFitness));
+                log(String.format("      mean: %.2f->%.2f, var: %.2f->%.2f, med: %.2f->%.2f, Q3: %.2f->%.2f",
+                    globalBest.meanTurns, result.candidateMean,
+                    globalBest.variance, result.candidateVariance,
+                    globalBest.median, result.candidateMedian,
+                    globalBest.q3, result.candidateQ3));
                 
-                globalBest = candidate.copy();
-                globalBest.fitness = result.candidateMean;
-                globalBest.standardError = result.candidateSE;
+                updateGlobalBest(candidate, result);
                 totalGamesPlayed += CONFIRMATION_GAMES;
                 candidate.isConfirmed = true;
             }
             else if (result.candidateWins) {
-                log(String.format("  Candidate %.4f not significant vs %.4f (p=%.4f)",
-                    result.candidateMean, result.bestMean, result.pValue));
+                log(String.format("  Candidate fit=%.4f not significant vs %.4f (p=%.4f)",
+                    result.candidateFitness, result.bestFitness, result.pValue));
             }
         }
+    }
+    
+    /** Update globalBest from head-to-head result */
+    private void updateGlobalBest(Individual candidate, HeadToHeadResult result) {
+        globalBest = candidate.copy();
+        globalBest.fitness = result.candidateFitness;
+        globalBest.meanTurns = result.candidateMean;
+        globalBest.variance = result.candidateVariance;
+        globalBest.median = result.candidateMedian;
+        globalBest.q3 = result.candidateQ3;
+        globalBest.standardError = result.candidateSE;
     }
     
     /**
      * Perform head-to-head comparison using paired t-test.
      * Both strategies play the exact same games (same seeds).
+     * Returns detailed statistics including variance, median, Q3.
      */
     private HeadToHeadResult headToHeadComparison(Individual candidate, Individual best, int games) {
         long[] seeds = generateSeeds(games);
@@ -377,36 +410,61 @@ public class GeneticOptimizer {
         }
         executor.shutdown();
         
-        // Calculate statistics
-        double candidateMean = mean(candidateScores);
-        double bestMean = mean(bestScores);
-        double meanDiff = mean(differences);
-        double seDiff = standardError(differences);
-        
-        // Paired t-test: t = meanDiff / seDiff
-        double tStat = meanDiff / seDiff;
-        double pValue = tTestPValue(tStat, games - 1);
-        
+        // Calculate all statistics for both strategies
         HeadToHeadResult result = new HeadToHeadResult();
-        result.candidateMean = candidateMean;
-        result.bestMean = bestMean;
+        
+        // Candidate stats
+        result.candidateMean = mean(candidateScores);
+        result.candidateVariance = variance(candidateScores);
+        result.candidateMedian = percentile(candidateScores, 50);
+        result.candidateQ3 = percentile(candidateScores, 75);
         result.candidateSE = standardError(candidateScores);
-        result.meanDifference = meanDiff;
-        result.standardErrorDiff = seDiff;
-        result.pValue = pValue;
-        result.candidateWins = meanDiff < 0;  // Lower is better
+        result.candidateFitness = MEAN_WEIGHT * result.candidateMean
+                                + VARIANCE_WEIGHT * Math.sqrt(result.candidateVariance)
+                                + MEDIAN_WEIGHT * result.candidateMedian
+                                + Q3_WEIGHT * result.candidateQ3;
+        
+        // Best stats
+        result.bestMean = mean(bestScores);
+        result.bestVariance = variance(bestScores);
+        result.bestMedian = percentile(bestScores, 50);
+        result.bestQ3 = percentile(bestScores, 75);
+        result.bestFitness = MEAN_WEIGHT * result.bestMean
+                           + VARIANCE_WEIGHT * Math.sqrt(result.bestVariance)
+                           + MEDIAN_WEIGHT * result.bestMedian
+                           + Q3_WEIGHT * result.bestQ3;
+        
+        // Paired comparison (on means, for t-test)
+        result.meanDifference = mean(differences);
+        result.standardErrorDiff = standardError(differences);
+        double tStat = result.meanDifference / result.standardErrorDiff;
+        result.pValue = tTestPValue(tStat, games - 1);
+        result.candidateWins = result.candidateFitness < result.bestFitness;  // Lower composite fitness is better
         
         return result;
     }
     
     private static class HeadToHeadResult {
+        // Candidate statistics
         double candidateMean;
-        double bestMean;
+        double candidateVariance;
+        double candidateMedian;
+        double candidateQ3;
         double candidateSE;
-        double meanDifference;    // Negative means candidate is better
-        double standardErrorDiff; // SE of the difference (for confidence interval)
+        double candidateFitness;  // Composite fitness
+        
+        // Best statistics
+        double bestMean;
+        double bestVariance;
+        double bestMedian;
+        double bestQ3;
+        double bestFitness;  // Composite fitness
+        
+        // Paired comparison
+        double meanDifference;    // Negative means candidate has lower mean
+        double standardErrorDiff;
         double pValue;
-        boolean candidateWins;
+        boolean candidateWins;    // Based on composite fitness
     }
     
     private ImprovedWeightedSelect createStrategy(Individual ind) {
@@ -427,12 +485,33 @@ public class GeneticOptimizer {
         return sum / values.length;
     }
     
+    private static double variance(double[] values) {
+        double m = mean(values);
+        double sumSq = 0;
+        for (double v : values) sumSq += (v - m) * (v - m);
+        return sumSq / (values.length - 1);  // Sample variance
+    }
+    
+    private static double percentile(double[] values, double p) {
+        double[] sorted = values.clone();
+        Arrays.sort(sorted);
+        double index = (p / 100.0) * (sorted.length - 1);
+        int lower = (int) Math.floor(index);
+        int upper = (int) Math.ceil(index);
+        if (lower == upper) {
+            return sorted[lower];
+        }
+        // Linear interpolation
+        double fraction = index - lower;
+        return sorted[lower] + fraction * (sorted[upper] - sorted[lower]);
+    }
+    
     private static double standardError(double[] values) {
         double m = mean(values);
         double sumSq = 0;
         for (double v : values) sumSq += (v - m) * (v - m);
-        double variance = sumSq / (values.length - 1);
-        return Math.sqrt(variance / values.length);
+        double var = sumSq / (values.length - 1);
+        return Math.sqrt(var / values.length);
     }
     
     /**
@@ -614,10 +693,11 @@ public class GeneticOptimizer {
         double progress = (double) generation / MAX_GENERATIONS;
         long eta = (long) (elapsed / progress) - elapsed;
         
-        log(String.format("Gen %d - Best: %.4f (±%.4f) - %s elapsed - ETA: %s - %d games - mut=%.3f - stag=%d",
+        log(String.format("Gen %d - Fit: %.4f (mean=%.2f, σ²=%.2f, med=%.2f, Q3=%.2f) - %s - ETA: %s - %d games - stag=%d",
             generation,
-            globalBest.fitness, globalBest.standardError * 1.96,
-            formatDuration(elapsed), formatDuration(eta), totalGamesPlayed, mutationStrength, stagnationCount));
+            globalBest.fitness, globalBest.meanTurns, globalBest.variance, 
+            globalBest.median, globalBest.q3,
+            formatDuration(elapsed), formatDuration(eta), totalGamesPlayed, stagnationCount));
         
         if (improved) {
             log("  *** IMPROVEMENT ***");
@@ -641,7 +721,11 @@ public class GeneticOptimizer {
     
     static class Individual {
         double[] genes;
-        double fitness = Double.MAX_VALUE;
+        double fitness = Double.MAX_VALUE;      // Composite fitness score
+        double meanTurns = Double.MAX_VALUE;    // Mean turns to win
+        double variance = Double.MAX_VALUE;     // Variance in turns
+        double median = Double.MAX_VALUE;       // Median turns
+        double q3 = Double.MAX_VALUE;           // 75th percentile (Q3)
         double standardError = Double.MAX_VALUE;
         int evaluationCount = 0;
         boolean isElite = false;
@@ -654,6 +738,10 @@ public class GeneticOptimizer {
         Individual copy() {
             Individual c = new Individual(this.genes);
             c.fitness = this.fitness;
+            c.meanTurns = this.meanTurns;
+            c.variance = this.variance;
+            c.median = this.median;
+            c.q3 = this.q3;
             c.standardError = this.standardError;
             c.evaluationCount = this.evaluationCount;
             c.isElite = this.isElite;
@@ -664,6 +752,10 @@ public class GeneticOptimizer {
         void markForReevaluation() {
             this.evaluationCount = 0;
             this.fitness = Double.MAX_VALUE;
+            this.meanTurns = Double.MAX_VALUE;
+            this.variance = Double.MAX_VALUE;
+            this.median = Double.MAX_VALUE;
+            this.q3 = Double.MAX_VALUE;
             this.standardError = Double.MAX_VALUE;
             this.isConfirmed = false;
         }
@@ -671,8 +763,13 @@ public class GeneticOptimizer {
     }
     
     private void printIndividualDetails(Individual ind) {
-        log(String.format("Fitness: %.4f turns (±%.4f, %d evaluations)",
-            ind.fitness, ind.standardError * 1.96, ind.evaluationCount));
+        log(String.format("Composite Fitness: %.4f (%d evaluations)", ind.fitness, ind.evaluationCount));
+        log(String.format("  Mean:     %.4f turns", ind.meanTurns));
+        log(String.format("  Variance: %.4f (σ=%.4f)", ind.variance, Math.sqrt(ind.variance)));
+        log(String.format("  Median:   %.4f turns", ind.median));
+        log(String.format("  Q3 (75%%): %.4f turns", ind.q3));
+        log(String.format("  Weights:  mean=%.0f%%, var=%.0f%%, med=%.0f%%, Q3=%.0f%%",
+            MEAN_WEIGHT * 100, VARIANCE_WEIGHT * 100, MEDIAN_WEIGHT * 100, Q3_WEIGHT * 100));
         log("Parameters:");
         for (int i = 0; i < PARAM_NAMES.length; i++) {
             log(String.format("  %s = %.4f", PARAM_NAMES[i], ind.genes[i]));
