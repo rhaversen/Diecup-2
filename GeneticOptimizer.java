@@ -61,7 +61,8 @@ public class GeneticOptimizer {
     private static final String[] PARAM_NAMES = {
         "OpportunityWeight", "RarityWeight", "ProgressWeight", "RarityScalar",
         "CollectionWeight", "CollectionScalar", "CompletionWeight", "CatchUpWeight",
-        "DiceCostWeight", "VarianceWeight", "GameProgressWeight", "AllDiceBonusWeight"
+        "DiceCostWeight", "VarianceWeight", "GameProgressWeight", "AllDiceBonusWeight",
+        "RemainingValueWeight"
     };
     private static final int PARAM_COUNT = PARAM_NAMES.length;
     
@@ -160,7 +161,8 @@ public class GeneticOptimizer {
             ImprovedWeightedSelect.getDefaultDiceCostWeight(),
             ImprovedWeightedSelect.getDefaultVarianceWeight(),
             ImprovedWeightedSelect.getDefaultGameProgressWeight(),
-            ImprovedWeightedSelect.getDefaultAllDiceBonusWeight()
+            ImprovedWeightedSelect.getDefaultAllDiceBonusWeight(),
+            ImprovedWeightedSelect.getDefaultRemainingValueWeight()
         };
         population.add(new Individual(knownGood));
         log("Seeded with known good parameters from strategy defaults");
@@ -412,7 +414,8 @@ public class GeneticOptimizer {
             statistics,
             ind.genes[0], ind.genes[1], ind.genes[2], ind.genes[3],
             ind.genes[4], ind.genes[5], ind.genes[6], ind.genes[7],
-            ind.genes[8], ind.genes[9], ind.genes[10], ind.genes[11]
+            ind.genes[8], ind.genes[9], ind.genes[10], ind.genes[11],
+            ind.genes[12]
         );
     }
     

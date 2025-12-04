@@ -21,6 +21,7 @@ public class ImprovedWeightedSelect implements Strategy {
     private final double varianceWeight;        // Weight for preferring low/high variance numbers
     private final double gameProgressWeight;    // Adjusts strategy based on how many slots are complete
     private final double allDiceBonusWeight;    // Weight for using all remaining dice this roll
+    private final double remainingValueWeight;  // Weight for expected value of remaining dice after this choice
 
     // default constructor using tuned defaults
     public ImprovedWeightedSelect(Statistics statistics) {
@@ -36,7 +37,8 @@ public class ImprovedWeightedSelect implements Strategy {
                 getDefaultDiceCostWeight(),
                 getDefaultVarianceWeight(),
                 getDefaultGameProgressWeight(),
-                getDefaultAllDiceBonusWeight());
+                getDefaultAllDiceBonusWeight(),
+                getDefaultRemainingValueWeight());
     }
 
     public ImprovedWeightedSelect(Statistics statistics,
@@ -51,7 +53,8 @@ public class ImprovedWeightedSelect implements Strategy {
             double diceCostWeight,
             double varianceWeight,
             double gameProgressWeight,
-            double allDiceBonusWeight) {
+            double allDiceBonusWeight,
+            double remainingValueWeight) {
         this.statistics = statistics;
         this.opportunityWeight = opportunityWeight;
         this.rarityWeight = rarityWeight;
@@ -65,6 +68,7 @@ public class ImprovedWeightedSelect implements Strategy {
         this.varianceWeight = varianceWeight;
         this.gameProgressWeight = gameProgressWeight;
         this.allDiceBonusWeight = allDiceBonusWeight;
+        this.remainingValueWeight = remainingValueWeight;
     }
 
     public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {
@@ -113,6 +117,7 @@ public class ImprovedWeightedSelect implements Strategy {
         double varianceValue = computeVarianceValue(value);
         double gameProgressValue = computeGameProgressAdjustment(gameProgress, pointsOnBoard, maxPoints);
         double allDiceValue = computeAllDiceBonus(value, collectable, totalDiceInRoll);
+        double remainingValue = computeRemainingTurnValue(value, collectable, pointsOnBoard, maxPoints, totalDiceInRoll);
 
         return rarityWeight * rarityValue
                 + progressWeight * progressValue
@@ -123,7 +128,8 @@ public class ImprovedWeightedSelect implements Strategy {
                 + diceCostWeight * diceCostValue
                 + varianceWeight * varianceValue
                 + gameProgressWeight * gameProgressValue
-                + allDiceBonusWeight * allDiceValue;
+                + allDiceBonusWeight * allDiceValue
+                + remainingValueWeight * remainingValue;
     }
 
     private double computeRarityValue(double frequency, int collectable) {
@@ -200,6 +206,31 @@ public class ImprovedWeightedSelect implements Strategy {
     }
     
     /**
+     * Compute the expected value of remaining dice after making this selection.
+     * This is the KEY insight: choosing an option affects how many dice remain,
+     * and more remaining dice = more expected points this turn.
+     * 
+     * Free turn triggers (completion or using all dice) reset to max dice.
+     */
+    private double computeRemainingTurnValue(int value, int collectable, int pointsOnBoard, 
+                                              int maxPoints, int totalDiceInRoll) {
+        int diceUsed = statistics.isPairNumber(value) ? collectable * 2 : collectable;
+        boolean completesSlot = (pointsOnBoard + collectable >= maxPoints);
+        boolean usesAllDice = (diceUsed >= totalDiceInRoll);
+        
+        int remainingDice;
+        if (completesSlot || usesAllDice) {
+            // Free turn - get all dice back
+            remainingDice = statistics.getMaxDice();
+        } else {
+            remainingDice = totalDiceInRoll - diceUsed;
+        }
+        
+        // Return expected points from remaining dice (pre-computed via simulation)
+        return statistics.getExpectedTurnValue(remainingDice);
+    }
+    
+    /**
      * Calculate overall game progress (0.0 = start, 1.0 = near completion).
      */
     private double calculateGameProgress(Scoreboard scoreboard, int maxPoints) {
@@ -233,50 +264,54 @@ public class ImprovedWeightedSelect implements Strategy {
     }
 
     public static double getDefaultOpportunityWeight() {
-        return 0.661;
+        return 1.009;
     }
 
     public static double getDefaultRarityWeight() {
-        return 0.468;
+        return -0.010;
     }
 
     public static double getDefaultProgressWeight() {
-        return 0.376;
+        return 0.501;
     }
 
     public static double getDefaultRarityScalar() {
-        return 0.164;
+        return 0.179;
     }
 
     public static double getDefaultCollectionWeight() {
-        return 0.536;
+        return -0.488;
     }
 
     public static double getDefaultCollectionScalar() {
-        return 0.148;
+        return 0.082;
     }
 
     public static double getDefaultCompletionWeight() {
-        return 0.707;
+        return 0.562;
     }
 
     public static double getDefaultCatchUpWeight() {
-        return 0.676;
+        return 0.608;
     }
     
     public static double getDefaultDiceCostWeight() {
-        return -0.15;
+        return -0.264;
     }
     
     public static double getDefaultVarianceWeight() {
-        return 0.178;
+        return 0.562;
     }
     
     public static double getDefaultGameProgressWeight() {
-        return 0.761;
+        return 0.508;
     }
     
     public static double getDefaultAllDiceBonusWeight() {
-        return 2.707;
+        return 2.180;
+    }
+    
+    public static double getDefaultRemainingValueWeight() {
+        return -0.202;
     }
 }

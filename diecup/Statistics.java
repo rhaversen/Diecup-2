@@ -11,6 +11,7 @@ public class Statistics {
     private Map<Integer, Double> expectedDiceUsed;         // Expected dice consumed when picking N
     private Map<Integer, Map<Integer, Double>> frequenciesByDiceCount;  // Frequencies for different dice counts
     private Map<Integer, Double> varianceByNumber;         // Variance in points collected per number
+    private double[] expectedTurnValue;                    // Expected total points in a turn starting with N dice
     private final int sides;
     private final int maxDice;
 
@@ -22,6 +23,7 @@ public class Statistics {
         calculateExpectedDiceUsed(numberOfDice, sides);
         calculateFrequenciesByDiceCount(numberOfDice, sides);
         calculateVarianceByNumber(numberOfDice, sides);
+        calculateExpectedTurnValue(numberOfDice, sides);
     }
 
     /**
@@ -65,6 +67,17 @@ public class Statistics {
      */
     public Map<Integer, Double> getVarianceByNumber() {
         return varianceByNumber;
+    }
+
+    /**
+     * Returns the expected total points collectible in a turn starting with N dice.
+     * Index 0 = 0 dice (always 0), index 1 = 1 die, ..., index maxDice = maxDice dice.
+     * This accounts for the fact that completing a slot or using all dice gives a free turn.
+     */
+    public double getExpectedTurnValue(int diceCount) {
+        if (diceCount < 0) return 0;
+        if (diceCount >= expectedTurnValue.length) return expectedTurnValue[expectedTurnValue.length - 1];
+        return expectedTurnValue[diceCount];
     }
 
     /**
@@ -213,5 +226,87 @@ public class Statistics {
             double variance = meanSquared - (mean * mean);
             varianceByNumber.put(num, variance);
         }
+    }
+
+    /**
+     * Calculate expected points per turn for each starting dice count.
+     * Uses Monte Carlo simulation with a greedy "pick highest expected value" strategy.
+     * This gives us a baseline for "how valuable are N remaining dice?"
+     */
+    private void calculateExpectedTurnValue(int maxDice, int sides) {
+        expectedTurnValue = new double[maxDice + 1];
+        expectedTurnValue[0] = 0;  // 0 dice = 0 expected points
+        
+        int iterations = 20000;
+        
+        for (int startDice = 1; startDice <= maxDice; startDice++) {
+            double totalPoints = 0;
+            
+            for (int i = 0; i < iterations; i++) {
+                totalPoints += simulateTurn(startDice, sides, maxDice);
+            }
+            
+            expectedTurnValue[startDice] = totalPoints / iterations;
+        }
+    }
+    
+    /**
+     * Simulate a single turn starting with given dice count.
+     * Uses a simple greedy strategy: always pick the option that gives most immediate points.
+     * Returns total points collected in this turn.
+     */
+    private double simulateTurn(int startDice, int sides, int maxDice) {
+        int currentDice = startDice;
+        double pointsThisTurn = 0;
+        
+        // Simplified scoreboard: track points per number (1 to 2*sides)
+        int[] points = new int[sides * 2 + 1];
+        int maxPointsPerSlot = 5;
+        
+        while (currentDice > 0) {
+            DieCup cup = new DieCup(currentDice, sides);
+            Map<Integer, Integer> roll = cup.getValuesMap();
+            
+            // Find best option (greedy: most points we can collect)
+            int bestNumber = -1;
+            int bestCollectable = 0;
+            int bestDiceUsed = 0;
+            
+            for (Map.Entry<Integer, Integer> entry : roll.entrySet()) {
+                int number = entry.getKey();
+                int available = entry.getValue();
+                int currentPoints = points[number];
+                int collectable = Math.min(available, maxPointsPerSlot - currentPoints);
+                
+                if (collectable > bestCollectable) {
+                    bestCollectable = collectable;
+                    bestNumber = number;
+                    bestDiceUsed = (number <= sides) ? collectable : collectable * 2;
+                }
+            }
+            
+            if (bestNumber == -1 || bestCollectable == 0) {
+                // Can't collect anything - turn ends
+                break;
+            }
+            
+            // Collect points
+            pointsThisTurn += bestCollectable;
+            points[bestNumber] += bestCollectable;
+            
+            // Check for free turn conditions
+            boolean completedSlot = (points[bestNumber] == maxPointsPerSlot);
+            boolean usedAllDice = (bestDiceUsed >= currentDice);
+            
+            if (completedSlot || usedAllDice) {
+                // Free turn - reset to max dice
+                currentDice = maxDice;
+            } else {
+                // Subtract used dice
+                currentDice -= bestDiceUsed;
+            }
+        }
+        
+        return pointsThisTurn;
     }
 }
