@@ -282,62 +282,62 @@ public class ImprovedWeightedSelect implements Strategy {
     }
 
     public static double getDefaultOpportunityWeight() {
-        return 0.643;
+        return 0.661;
     }
 
     public static double getDefaultRarityWeight() {
-        return 0.579;
+        return 0.468;
     }
 
     public static double getDefaultProgressWeight() {
-        return 0.012;
+        return 0.376;
     }
 
     public static double getDefaultRarityScalar() {
-        return -0.009;
+        return 0.164;
     }
 
     public static double getDefaultCollectionWeight() {
-        return 0.489;
+        return 0.536;
     }
 
     public static double getDefaultCollectionScalar() {
-        return 1.012;
+        return 0.148;
     }
 
     public static double getDefaultCompletionWeight() {
-        return -0.095;
+        return 0.346;
     }
 
     public static double getDefaultCatchUpWeight() {
-        return 1.431;
+        return 0.676;
     }
     
     public static double getDefaultPairPenalty() {
-        return -0.106;
+        return -0.456;
     }
     
     public static double getDefaultDiceEfficiencyWeight() {
-        return -0.702;
+        return 0.162;
     }
     
     public static double getDefaultVarianceWeight() {
-        return 0.294;
+        return 0.178;
     }
     
     public static double getDefaultGameProgressWeight() {
-        return 0.803;
+        return 0.761;
     }
     
     public static double getDefaultNearCompletionBonus() {
-        return 0.373;
+        return 0.085;
     }
     
     public static double getDefaultFreeTurnWeight() {
-        return 0.877;
+        return 0.361;
     }
     
     public static double getDefaultAllDiceBonusWeight() {
-        return 1.431;
+        return 2.707;
     }
 }
