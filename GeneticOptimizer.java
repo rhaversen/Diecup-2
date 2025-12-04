@@ -231,6 +231,16 @@ public class GeneticOptimizer {
         // Sort by fitness (lower is better)
         population.sort(Comparator.comparingDouble(ind -> ind.fitness));
         
+        // Log screening results
+        Individual screeningBest = population.get(0);
+        int eliteCount = (int) population.stream().filter(ind -> ind.isElite).count();
+        int confirmedCount = (int) population.stream().filter(ind -> ind.isConfirmed).count();
+        log(String.format("  Screening: best=%.4f, top5=[%.4f, %.4f, %.4f, %.4f, %.4f], elites=%d, confirmed=%d",
+            screeningBest.fitness,
+            population.get(0).fitness, population.get(1).fitness, population.get(2).fitness,
+            population.get(3).fitness, population.get(4).fitness,
+            eliteCount, confirmedCount));
+        
         // Confirm top candidates using head-to-head comparison against global best
         confirmTopCandidates();
     }
@@ -592,10 +602,10 @@ public class GeneticOptimizer {
         double progress = (double) generation / MAX_GENERATIONS;
         long eta = (long) (elapsed / progress) - elapsed;
         
-        log(String.format("Gen %d/%d (%.0f%%) - Best: %.4f (±%.4f) - %s elapsed, ETA %s - %d total games on best",
-            generation, MAX_GENERATIONS, progress * 100,
+        log(String.format("Gen %d - Best: %.4f (±%.4f) - %s elapsed - ETA: %s - %d games - mut=%.3f - stag=%d",
+            generation,
             globalBest.fitness, globalBest.standardError * 1.96,
-            formatDuration(elapsed), formatDuration(eta), totalGamesPlayed));
+            formatDuration(elapsed), formatDuration(eta), totalGamesPlayed, mutationStrength, stagnationCount));
         
         if (improved) {
             log("  *** IMPROVEMENT ***");
