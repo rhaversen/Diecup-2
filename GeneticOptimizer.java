@@ -27,16 +27,16 @@ public class GeneticOptimizer {
     private static final int POPULATION_SIZE = 1000;
     private static final int MAX_GENERATIONS = Integer.MAX_VALUE;  // Run until manually stopped
     private static final int ELITE_COUNT = 20;
-    private static final double DIVERSITY_RATIO = 0.15;  // 15% random injection per generation
+    private static final double DIVERSITY_RATIO = 0.20;  // 20% random injection per generation
     
     /** Selection Settings */
     private static final int TOURNAMENT_SIZE = 3;
     
     /** Mutation Settings */
-    private static final double MUTATION_RATE_PER_GENE = 0.30;  // 30% chance per gene
-    private static final double MUTATION_STRENGTH_INITIAL = 0.15;
-    private static final double MUTATION_STRENGTH_MAX = 0.5;
-    private static final double LARGE_MUTATION_RATE = 0.08;  // Chance to reset a gene completely
+    private static final double MUTATION_RATE_PER_GENE = 0.35;  // Chance to mutate each gene
+    private static final double MUTATION_STRENGTH_INITIAL = 0.20;  // Initial mutation strength
+    private static final double MUTATION_STRENGTH_MAX = 0.6; // Max mutation strength
+    private static final double LARGE_MUTATION_RATE = 0.12; // Chance to reset a gene completely
     
     /** Evaluation Settings - Common Random Numbers */
     private static final int GAMES_PER_GENERATION = 5_000;     // Games per individual per generation (using shared seeds)
@@ -51,9 +51,9 @@ public class GeneticOptimizer {
     private static final double Q3_WEIGHT = 0.15;        // Weight for 75th percentile (worst-case)
     
     /** Stagnation Settings */
-    private static final int STAGNATION_THRESHOLD = 5;   // Increase mutation after N generations without improvement
-    private static final int RESTART_THRESHOLD = 20;     // Inject diversity after N generations without improvement
-    private static final double RESTART_FRACTION = 0.40; // Replace 40% on restart
+    private static final int STAGNATION_THRESHOLD = 3;   // Increase mutation after N generations without improvement
+    private static final int RESTART_THRESHOLD = 10;     // Inject diversity after N generations without improvement
+    private static final double RESTART_FRACTION = 0.50; // Replace this fraction of population on restart
     
     /** Threading */
     private static final int FREE_THREADS = 1;  // Leave some CPU free for system responsiveness
@@ -663,17 +663,19 @@ public class GeneticOptimizer {
         } else {
             stagnationCount++;
             
-            // Increase mutation strength if stuck
+            // Increase mutation strength aggressively if stuck
             if (stagnationCount > STAGNATION_THRESHOLD) {
-                mutationStrength = Math.min(MUTATION_STRENGTH_MAX, mutationStrength * 1.5);
+                // Jump to max mutation quickly (2x instead of 1.5x)
+                mutationStrength = Math.min(MUTATION_STRENGTH_MAX, mutationStrength * 2.0);
             }
             
-            // Major diversity injection if very stuck
+            // Major diversity injection if stuck - keep mutation high after restart
             if (stagnationCount > RESTART_THRESHOLD) {
-                log("  Stagnation detected - injecting diversity...");
+                log("  Stagnation detected - injecting " + (int)(RESTART_FRACTION * 100) + "% diversity with high mutation...");
                 injectDiversity(RESTART_FRACTION);
                 stagnationCount = 0;
-                mutationStrength = MUTATION_STRENGTH_INITIAL;
+                // Keep mutation high after diversity injection to explore new space
+                mutationStrength = MUTATION_STRENGTH_MAX * 0.75;
             }
         }
     }
