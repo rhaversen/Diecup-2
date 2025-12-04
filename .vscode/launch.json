@@ -33,6 +33,12 @@
         },
         {
             "type": "java",
+            "name": "Genetic Optimizer (Parameter Tuner V2)",
+            "request": "launch",
+            "mainClass": "GeneticOptimizer"
+        },
+        {
+            "type": "java",
             "name": "PerformanceAnalyzer",
             "request": "launch",
             "mainClass": "PerformanceAnalyzer"
