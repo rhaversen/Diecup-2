@@ -38,7 +38,7 @@ public class GeneticOptimizer {
     private static final int INITIAL_EVALUATIONS = 10_000;
     private static final int CONFIRMATION_EVALUATIONS = 20_000;
     private static final int ELITE_REEVALUATION_INTERVAL = 5;  // Re-evaluate elites every N generations
-    private static final int TOP_N_TO_CONFIRM = 3;  // Confirm top N candidates to reduce false negatives
+    private static final int TOP_N_TO_CONFIRM = 10;  // Confirm top N candidates - confirmation is cheap (~1s each)
     
     /** Stagnation Settings */
     private static final int STAGNATION_THRESHOLD = 8;   // Increase mutation after N generations without improvement
@@ -122,7 +122,23 @@ public class GeneticOptimizer {
     
     private void initializePopulation() {
         System.out.println("Initializing population...");
-        for (int i = 0; i < POPULATION_SIZE; i++) {
+        
+        // Seed with known good parameters from strategy defaults
+        double[] knownGood = {
+            ImprovedWeightedSelect.getDefaultOpportunityWeight(),
+            ImprovedWeightedSelect.getDefaultRarityWeight(),
+            ImprovedWeightedSelect.getDefaultProgressWeight(),
+            ImprovedWeightedSelect.getDefaultRarityScalar(),
+            ImprovedWeightedSelect.getDefaultCollectionWeight(),
+            ImprovedWeightedSelect.getDefaultCollectionScalar(),
+            ImprovedWeightedSelect.getDefaultCompletionWeight(),
+            ImprovedWeightedSelect.getDefaultCatchUpWeight()
+        };
+        population.add(new Individual(knownGood));
+        System.out.println("Seeded with known good parameters from strategy defaults");
+        
+        // Fill rest with random individuals
+        for (int i = 1; i < POPULATION_SIZE; i++) {
             population.add(createRandomIndividual());
         }
     }
@@ -198,6 +214,7 @@ public class GeneticOptimizer {
                 candidate.fitness = newFitness;
                 candidate.evaluationCount = oldCount + CONFIRMATION_EVALUATIONS;
                 candidate.standardError *= Math.sqrt((double) oldCount / candidate.evaluationCount);
+                candidate.isConfirmed = true;  // Mark as having high-quality estimate
             }
         }
         
@@ -253,20 +270,38 @@ public class GeneticOptimizer {
     private void evolve() {
         List<Individual> nextGen = new ArrayList<>();
         
-        // 1. Elitism - keep top performers
-        for (int i = 0; i < ELITE_COUNT; i++) {
-            Individual elite = population.get(i).copy();
-            elite.isElite = true;
-            nextGen.add(elite);
+        // 1. Always keep ALL confirmed individuals - they have reliable fitness estimates
+        //    These are valuable because we spent compute on them
+        List<Individual> confirmed = new ArrayList<>();
+        for (Individual ind : population) {
+            if (ind.isConfirmed) {
+                Individual copy = ind.copy();
+                copy.isElite = true;  // Confirmed individuals are always elite
+                confirmed.add(copy);
+            }
+        }
+        nextGen.addAll(confirmed);
+        
+        // 2. Fill remaining elite slots with top performers (that aren't already added)
+        int elitesNeeded = ELITE_COUNT - nextGen.size();
+        int added = 0;
+        for (int i = 0; i < population.size() && added < elitesNeeded; i++) {
+            Individual ind = population.get(i);
+            if (!ind.isConfirmed) {  // Don't duplicate confirmed ones
+                Individual elite = ind.copy();
+                elite.isElite = true;
+                nextGen.add(elite);
+                added++;
+            }
         }
         
-        // 2. Diversity injection - random individuals
+        // 3. Diversity injection - random individuals
         int diversityCount = (int) (POPULATION_SIZE * DIVERSITY_RATIO);
         for (int i = 0; i < diversityCount; i++) {
             nextGen.add(createRandomIndividual());
         }
         
-        // 3. Offspring - crossover and mutation
+        // 4. Offspring - crossover and mutation
         while (nextGen.size() < POPULATION_SIZE) {
             Individual parent1 = selectParent();
             Individual parent2 = selectParent();
@@ -282,10 +317,18 @@ public class GeneticOptimizer {
     // ===== SELECTION =====
     
     private Individual selectParent() {
+        // Tournament selection with preference for confirmed individuals
+        // Confirmed individuals have reliable fitness, so we trust their rankings more
         Individual best = null;
         for (int i = 0; i < TOURNAMENT_SIZE; i++) {
             Individual candidate = population.get(random.nextInt(population.size()));
-            if (best == null || candidate.fitness < best.fitness) {
+            if (best == null) {
+                best = candidate;
+            } else if (candidate.isConfirmed && !best.isConfirmed) {
+                // Prefer confirmed over unconfirmed (more reliable estimate)
+                best = candidate;
+            } else if (candidate.isConfirmed == best.isConfirmed && candidate.fitness < best.fitness) {
+                // Same confirmation status - pick better fitness
                 best = candidate;
             }
         }
@@ -419,6 +462,7 @@ public class GeneticOptimizer {
         double standardError = Double.MAX_VALUE;
         int evaluationCount = 0;
         boolean isElite = false;
+        boolean isConfirmed = false;  // True if this individual has high-quality (30K) evaluation
         
         Individual(double[] genes) {
             this.genes = genes.clone();
@@ -430,6 +474,7 @@ public class GeneticOptimizer {
             c.standardError = this.standardError;
             c.evaluationCount = this.evaluationCount;
             c.isElite = this.isElite;
+            c.isConfirmed = this.isConfirmed;
             return c;
         }
         
@@ -437,6 +482,7 @@ public class GeneticOptimizer {
             this.evaluationCount = 0;
             this.fitness = Double.MAX_VALUE;
             this.standardError = Double.MAX_VALUE;
+            this.isConfirmed = false;
         }
         
         void printDetails() {

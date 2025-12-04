@@ -121,35 +121,35 @@ public class ImprovedWeightedSelect implements Strategy {
         return 1.0 - ((double) pointsOnBoard / maxPoints);
     }
 
-    private static double getDefaultOpportunityWeight() {
+    public static double getDefaultOpportunityWeight() {
         return 0.317;
     }
 
-    private static double getDefaultRarityWeight() {
+    public static double getDefaultRarityWeight() {
         return 1.000;
     }
 
-    private static double getDefaultProgressWeight() {
+    public static double getDefaultProgressWeight() {
         return 0.780;
     }
 
-    private static double getDefaultRarityScalar() {
+    public static double getDefaultRarityScalar() {
         return 0.000;
     }
 
-    private static double getDefaultCollectionWeight() {
+    public static double getDefaultCollectionWeight() {
         return 0.439;
     }
 
-    private static double getDefaultCollectionScalar() {
+    public static double getDefaultCollectionScalar() {
         return 0.791;
     }
 
-    private static double getDefaultCompletionWeight() {
+    public static double getDefaultCompletionWeight() {
         return 0.148;
     }
 
-    private static double getDefaultCatchUpWeight() {
+    public static double getDefaultCatchUpWeight() {
         return 0.275;
     }
 }
