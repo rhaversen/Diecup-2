@@ -20,8 +20,8 @@ public class GeneticOptimizer {
     // ===== CONFIGURATION =====
     
     /** GA Population and Generation Settings */
-    private static final int POPULATION_SIZE = 500;
-    private static final int MAX_GENERATIONS = 50;
+    private static final int POPULATION_SIZE = 1000;
+    private static final int MAX_GENERATIONS = Integer.MAX_VALUE;  // Run until manually stopped
     private static final int ELITE_COUNT = 20;
     private static final double DIVERSITY_RATIO = 0.15;  // 15% random injection per generation
     
@@ -35,18 +35,19 @@ public class GeneticOptimizer {
     private static final double LARGE_MUTATION_RATE = 0.08;  // Chance to reset a gene completely
     
     /** Evaluation Settings */
-    private static final int INITIAL_EVALUATIONS = 10_000;
-    private static final int CONFIRMATION_EVALUATIONS = 20_000;
+    private static final int INITIAL_EVALUATIONS = 20_000;
+    private static final int CONFIRMATION_EVALUATIONS = 30_000;
     private static final int ELITE_REEVALUATION_INTERVAL = 5;  // Re-evaluate elites every N generations
     private static final int TOP_N_TO_CONFIRM = 10;  // Confirm top N candidates - confirmation is cheap (~1s each)
     
     /** Stagnation Settings */
-    private static final int STAGNATION_THRESHOLD = 8;   // Increase mutation after N generations without improvement
-    private static final int RESTART_THRESHOLD = 15;     // Inject diversity after N generations without improvement
+    private static final int STAGNATION_THRESHOLD = 5;   // Increase mutation after N generations without improvement
+    private static final int RESTART_THRESHOLD = 20;     // Inject diversity after N generations without improvement
     private static final double RESTART_FRACTION = 0.40; // Replace 40% on restart
     
     /** Threading */
-    private static final int THREAD_COUNT = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
+    private static final int FREE_THREADS = 1;  // Leave some CPU free for system responsiveness
+    private static final int THREAD_COUNT = Math.max(1, Runtime.getRuntime().availableProcessors() - FREE_THREADS);
     
     /** Game Configuration */
     private static final int DICE_COUNT = 6;
