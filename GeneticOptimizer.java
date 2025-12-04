@@ -317,18 +317,11 @@ public class GeneticOptimizer {
     // ===== SELECTION =====
     
     private Individual selectParent() {
-        // Tournament selection with preference for confirmed individuals
-        // Confirmed individuals have reliable fitness, so we trust their rankings more
+        // Tournament selection - pick best fitness from random candidates
         Individual best = null;
         for (int i = 0; i < TOURNAMENT_SIZE; i++) {
             Individual candidate = population.get(random.nextInt(population.size()));
-            if (best == null) {
-                best = candidate;
-            } else if (candidate.isConfirmed && !best.isConfirmed) {
-                // Prefer confirmed over unconfirmed (more reliable estimate)
-                best = candidate;
-            } else if (candidate.isConfirmed == best.isConfirmed && candidate.fitness < best.fitness) {
-                // Same confirmation status - pick better fitness
+            if (best == null || candidate.fitness < best.fitness) {
                 best = candidate;
             }
         }
