@@ -122,15 +122,15 @@ public class ImprovedWeightedSelect implements Strategy {
     }
 
     private static double getDefaultOpportunityWeight() {
-        return 0.286;
+        return 0.317;
     }
 
     private static double getDefaultRarityWeight() {
-        return 0.802;
+        return 1.000;
     }
 
     private static double getDefaultProgressWeight() {
-        return 0.300;
+        return 0.780;
     }
 
     private static double getDefaultRarityScalar() {
@@ -138,18 +138,18 @@ public class ImprovedWeightedSelect implements Strategy {
     }
 
     private static double getDefaultCollectionWeight() {
-        return 0.508;
+        return 0.439;
     }
 
     private static double getDefaultCollectionScalar() {
-        return 0.852;
+        return 0.791;
     }
 
     private static double getDefaultCompletionWeight() {
-        return 0.112;
+        return 0.148;
     }
 
     private static double getDefaultCatchUpWeight() {
-        return 0.168;
+        return 0.275;
     }
 }
