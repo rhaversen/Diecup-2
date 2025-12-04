@@ -15,14 +15,11 @@ public class ImprovedWeightedSelect implements Strategy {
     private final double rarityScalar;
     private final double collectionWeight;
     private final double collectionScalar;
-    private final double completionWeight;
+    private final double completionWeight;      // Bonus for completing a slot (triggers free turn)
     private final double catchUpWeight;
-    private final double pairPenalty;           // Penalty for choosing pair numbers (7-12) - they use more dice
-    private final double diceEfficiencyWeight;  // Weight for dice efficiency (points per die used)
+    private final double diceCostWeight;        // Weight for dice cost (pair numbers cost 2 dice, singles cost 1)
     private final double varianceWeight;        // Weight for preferring low/high variance numbers
     private final double gameProgressWeight;    // Adjusts strategy based on how many slots are complete
-    private final double nearCompletionBonus;   // Bonus for numbers that are close to completion (3-4 points)
-    private final double freeTurnWeight;        // Weight for potential to trigger free turn (completion or all dice)
     private final double allDiceBonusWeight;    // Weight for using all remaining dice this roll
 
     // default constructor using tuned defaults
@@ -36,12 +33,9 @@ public class ImprovedWeightedSelect implements Strategy {
                 getDefaultCollectionScalar(),
                 getDefaultCompletionWeight(),
                 getDefaultCatchUpWeight(),
-                getDefaultPairPenalty(),
-                getDefaultDiceEfficiencyWeight(),
+                getDefaultDiceCostWeight(),
                 getDefaultVarianceWeight(),
                 getDefaultGameProgressWeight(),
-                getDefaultNearCompletionBonus(),
-                getDefaultFreeTurnWeight(),
                 getDefaultAllDiceBonusWeight());
     }
 
@@ -54,12 +48,9 @@ public class ImprovedWeightedSelect implements Strategy {
             double collectionScalar,
             double completionWeight,
             double catchUpWeight,
-            double pairPenalty,
-            double diceEfficiencyWeight,
+            double diceCostWeight,
             double varianceWeight,
             double gameProgressWeight,
-            double nearCompletionBonus,
-            double freeTurnWeight,
             double allDiceBonusWeight) {
         this.statistics = statistics;
         this.opportunityWeight = opportunityWeight;
@@ -70,12 +61,9 @@ public class ImprovedWeightedSelect implements Strategy {
         this.collectionScalar = collectionScalar;
         this.completionWeight = completionWeight;
         this.catchUpWeight = catchUpWeight;
-        this.pairPenalty = pairPenalty;
-        this.diceEfficiencyWeight = diceEfficiencyWeight;
+        this.diceCostWeight = diceCostWeight;
         this.varianceWeight = varianceWeight;
         this.gameProgressWeight = gameProgressWeight;
-        this.nearCompletionBonus = nearCompletionBonus;
-        this.freeTurnWeight = freeTurnWeight;
         this.allDiceBonusWeight = allDiceBonusWeight;
     }
 
@@ -121,12 +109,9 @@ public class ImprovedWeightedSelect implements Strategy {
         double collectionValue = computeCollectionValue(collectable);
         double completionBonus = computeCompletionBonus(pointsOnBoard, collectable, maxPoints);
         double catchUpValue = computeCatchUpValue(pointsOnBoard, maxPoints);
-        double pairPenaltyValue = computePairPenalty(value);
-        double diceEfficiencyValue = computeDiceEfficiency(value, collectable);
+        double diceCostValue = computeDiceCost(value, collectable);
         double varianceValue = computeVarianceValue(value);
         double gameProgressValue = computeGameProgressAdjustment(gameProgress, pointsOnBoard, maxPoints);
-        double nearCompletionValue = computeNearCompletionBonus(pointsOnBoard, collectable, maxPoints);
-        double freeTurnValue = computeFreeTurnValue(pointsOnBoard, collectable, maxPoints);
         double allDiceValue = computeAllDiceBonus(value, collectable, totalDiceInRoll);
 
         return rarityWeight * rarityValue
@@ -135,12 +120,9 @@ public class ImprovedWeightedSelect implements Strategy {
                 + collectionWeight * collectionValue
                 + completionWeight * completionBonus
                 + catchUpWeight * catchUpValue
-                + pairPenalty * pairPenaltyValue
-                + diceEfficiencyWeight * diceEfficiencyValue
+                + diceCostWeight * diceCostValue
                 + varianceWeight * varianceValue
                 + gameProgressWeight * gameProgressValue
-                + nearCompletionBonus * nearCompletionValue
-                + freeTurnWeight * freeTurnValue
                 + allDiceBonusWeight * allDiceValue;
     }
 
@@ -172,21 +154,14 @@ public class ImprovedWeightedSelect implements Strategy {
     }
 
     /**
-     * Penalty for pair numbers (7-12) since they consume 2 dice per point.
-     * Returns negative value for pair numbers, 0 for single-die numbers.
+     * Dice cost: how many dice are consumed for this selection.
+     * Negative value = more dice used (pair numbers use 2 per point, singles use 1).
+     * Positive weight means prefer efficient (fewer dice), negative means prefer using more dice.
      */
-    private double computePairPenalty(int value) {
-        return statistics.isPairNumber(value) ? -1.0 : 0.0;
-    }
-    
-    /**
-     * Dice efficiency: points gained per die consumed.
-     * Single numbers (1-6) use 1 die per point = 1.0 efficiency
-     * Pair numbers (7-12) use 2 dice per point = 0.5 efficiency
-     */
-    private double computeDiceEfficiency(int value, int collectable) {
+    private double computeDiceCost(int value, int collectable) {
         int diceUsed = statistics.isPairNumber(value) ? collectable * 2 : collectable;
-        return (double) collectable / diceUsed;
+        // Return negative of dice used so positive weight = prefer fewer dice
+        return -diceUsed;
     }
     
     /**
@@ -211,30 +186,6 @@ public class ImprovedWeightedSelect implements Strategy {
         // Late game: prioritize slots that are further behind
         double slotProgress = (double) pointsOnBoard / maxPoints;
         return gameProgress * (1.0 - slotProgress);
-    }
-    
-    /**
-     * Bonus for slots that are close to completion (3-4 points).
-     * These are strategic to complete for free turns.
-     */
-    private double computeNearCompletionBonus(int pointsOnBoard, int collectable, int maxPoints) {
-        int pointsAfter = Math.min(pointsOnBoard + collectable, maxPoints);
-        // Bonus if we're at 3-4 points after collection (close but not complete)
-        if (pointsAfter >= 3 && pointsAfter < maxPoints) {
-            return (double) pointsAfter / maxPoints;
-        }
-        return 0.0;
-    }
-    
-    /**
-     * Value for potential free turn: completing a slot gives all dice back.
-     */
-    private double computeFreeTurnValue(int pointsOnBoard, int collectable, int maxPoints) {
-        // Will this collection complete the slot?
-        if (pointsOnBoard + collectable >= maxPoints) {
-            return 1.0;
-        }
-        return 0.0;
     }
     
     /**
@@ -306,19 +257,15 @@ public class ImprovedWeightedSelect implements Strategy {
     }
 
     public static double getDefaultCompletionWeight() {
-        return 0.346;
+        return 0.707;
     }
 
     public static double getDefaultCatchUpWeight() {
         return 0.676;
     }
     
-    public static double getDefaultPairPenalty() {
-        return -0.456;
-    }
-    
-    public static double getDefaultDiceEfficiencyWeight() {
-        return 0.162;
+    public static double getDefaultDiceCostWeight() {
+        return -0.15;
     }
     
     public static double getDefaultVarianceWeight() {
@@ -327,14 +274,6 @@ public class ImprovedWeightedSelect implements Strategy {
     
     public static double getDefaultGameProgressWeight() {
         return 0.761;
-    }
-    
-    public static double getDefaultNearCompletionBonus() {
-        return 0.085;
-    }
-    
-    public static double getDefaultFreeTurnWeight() {
-        return 0.361;
     }
     
     public static double getDefaultAllDiceBonusWeight() {

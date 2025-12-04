@@ -61,8 +61,7 @@ public class GeneticOptimizer {
     private static final String[] PARAM_NAMES = {
         "OpportunityWeight", "RarityWeight", "ProgressWeight", "RarityScalar",
         "CollectionWeight", "CollectionScalar", "CompletionWeight", "CatchUpWeight",
-        "PairPenalty", "DiceEfficiencyWeight", "VarianceWeight", "GameProgressWeight",
-        "NearCompletionBonus", "FreeTurnWeight", "AllDiceBonusWeight"
+        "DiceCostWeight", "VarianceWeight", "GameProgressWeight", "AllDiceBonusWeight"
     };
     private static final int PARAM_COUNT = PARAM_NAMES.length;
     
@@ -158,12 +157,9 @@ public class GeneticOptimizer {
             ImprovedWeightedSelect.getDefaultCollectionScalar(),
             ImprovedWeightedSelect.getDefaultCompletionWeight(),
             ImprovedWeightedSelect.getDefaultCatchUpWeight(),
-            ImprovedWeightedSelect.getDefaultPairPenalty(),
-            ImprovedWeightedSelect.getDefaultDiceEfficiencyWeight(),
+            ImprovedWeightedSelect.getDefaultDiceCostWeight(),
             ImprovedWeightedSelect.getDefaultVarianceWeight(),
             ImprovedWeightedSelect.getDefaultGameProgressWeight(),
-            ImprovedWeightedSelect.getDefaultNearCompletionBonus(),
-            ImprovedWeightedSelect.getDefaultFreeTurnWeight(),
             ImprovedWeightedSelect.getDefaultAllDiceBonusWeight()
         };
         population.add(new Individual(knownGood));
@@ -300,6 +296,7 @@ public class GeneticOptimizer {
             // Head-to-head comparison using paired testing
             HeadToHeadResult result = headToHeadComparison(candidate, globalBest, CONFIRMATION_GAMES);
             
+            // Accept if candidate significantly beats globalBest in head-to-head
             if (result.candidateWins && result.pValue < SIGNIFICANCE_THRESHOLD) {
                 log(String.format("  *** Confirmed improvement: %.4f -> %.4f (p=%.4f, diff=%.4f±%.4f) ***",
                     globalBest.fitness, result.candidateMean, result.pValue,
@@ -402,8 +399,7 @@ public class GeneticOptimizer {
             statistics,
             ind.genes[0], ind.genes[1], ind.genes[2], ind.genes[3],
             ind.genes[4], ind.genes[5], ind.genes[6], ind.genes[7],
-            ind.genes[8], ind.genes[9], ind.genes[10], ind.genes[11],
-            ind.genes[12], ind.genes[13], ind.genes[14]
+            ind.genes[8], ind.genes[9], ind.genes[10], ind.genes[11]
         );
     }
     
