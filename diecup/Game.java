@@ -33,7 +33,7 @@ public class Game {
 
     public void startGame() {
         turns = 0;
-        Scanner scanner = new Scanner(System.in);
+        scoreboard.reset();
         while (!scoreboard.isComplete()) {
             turns++;
             logger.info("Runde " + turns, 2);
@@ -42,7 +42,6 @@ public class Game {
             playTurn();
         }
         logger.info("Fuldt point på " + turns + " runder", 1);
-        scanner.close();
     }
 
     public void playTurn() {

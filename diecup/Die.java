@@ -1,11 +1,10 @@
 package diecup;
 
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Die {
     private int faceValue;
     private int sides;
-    private Random random = new Random();
 
     public Die(int sides) {
         this.sides = sides;
@@ -14,7 +13,7 @@ public class Die {
     }
 
     public void roll() {
-        this.faceValue = random.nextInt(this.sides) + 1;
+        this.faceValue = ThreadLocalRandom.current().nextInt(this.sides) + 1;
     }
 
     public int getFaceValue() {
