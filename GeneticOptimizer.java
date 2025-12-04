@@ -173,7 +173,8 @@ public class GeneticOptimizer {
     private Individual createRandomIndividual() {
         double[] genes = new double[PARAM_COUNT];
         for (int i = 0; i < PARAM_COUNT; i++) {
-            genes[i] = random.nextDouble();
+            // Range -1 to 2 to allow exploration in all directions
+            genes[i] = random.nextDouble() * 3.0 - 1.0;
         }
         return new Individual(genes);
     }
@@ -367,7 +368,7 @@ public class GeneticOptimizer {
             case 0 -> { // Blend crossover
                 double alpha = random.nextDouble();
                 for (int i = 0; i < PARAM_COUNT; i++) {
-                    childGenes[i] = clamp(p1.genes[i] + alpha * (p2.genes[i] - p1.genes[i]));
+                    childGenes[i] = p1.genes[i] + alpha * (p2.genes[i] - p1.genes[i]);
                 }
             }
             case 1 -> { // Average crossover
@@ -393,15 +394,15 @@ public class GeneticOptimizer {
         // Per-gene Gaussian mutation
         for (int i = 0; i < PARAM_COUNT; i++) {
             if (random.nextDouble() < MUTATION_RATE_PER_GENE) {
-                ind.genes[i] = clamp(ind.genes[i] + random.nextGaussian() * mutationStrength);
+                ind.genes[i] = ind.genes[i] + random.nextGaussian() * mutationStrength;
                 mutated = true;
             }
         }
         
-        // Occasional large mutation (exploration)
+        // Occasional large mutation (exploration) - range -1 to 2
         if (random.nextDouble() < LARGE_MUTATION_RATE) {
             int idx = random.nextInt(PARAM_COUNT);
-            ind.genes[idx] = random.nextDouble();
+            ind.genes[idx] = random.nextDouble() * 3.0 - 1.0;
             mutated = true;
         }
         
@@ -443,10 +444,6 @@ public class GeneticOptimizer {
     }
     
     // ===== UTILITIES =====
-    
-    private static double clamp(double v) {
-        return Math.max(0.0, Math.min(1.0, v));
-    }
     
     private void printProgress(int generation, long startTime, boolean improved) {
         long elapsed = System.currentTimeMillis() - startTime;
