@@ -70,7 +70,8 @@ public class GeneticOptimizer {
         "OpportunityWeight", "RarityWeight", "ProgressWeight", "RarityScalar",
         "CollectionWeight", "CollectionScalar", "CompletionWeight", "CatchUpWeight",
         "DiceCostWeight", "VarianceWeight", "GameProgressWeight", "AllDiceBonusWeight",
-        "RemainingValueWeight"
+        "RemainingValueWeight", "EfficiencyWeight", "CommitmentRiskWeight", "MultiCollectThreshold",
+        "ContinuationWeight"
     };
     private static final int PARAM_COUNT = PARAM_NAMES.length;
     
@@ -170,7 +171,11 @@ public class GeneticOptimizer {
             ImprovedWeightedSelect.getDefaultVarianceWeight(),
             ImprovedWeightedSelect.getDefaultGameProgressWeight(),
             ImprovedWeightedSelect.getDefaultAllDiceBonusWeight(),
-            ImprovedWeightedSelect.getDefaultRemainingValueWeight()
+            ImprovedWeightedSelect.getDefaultRemainingValueWeight(),
+            ImprovedWeightedSelect.getDefaultEfficiencyWeight(),
+            ImprovedWeightedSelect.getDefaultCommitmentRiskWeight(),
+            ImprovedWeightedSelect.getDefaultMultiCollectThreshold(),
+            ImprovedWeightedSelect.getDefaultContinuationWeight()
         };
         population.add(new Individual(initialParams));
         log("Seeded with strategy default parameters");
@@ -221,7 +226,11 @@ public class GeneticOptimizer {
             ImprovedWeightedSelect.getDefaultVarianceWeight(),
             ImprovedWeightedSelect.getDefaultGameProgressWeight(),
             ImprovedWeightedSelect.getDefaultAllDiceBonusWeight(),
-            ImprovedWeightedSelect.getDefaultRemainingValueWeight()
+            ImprovedWeightedSelect.getDefaultRemainingValueWeight(),
+            ImprovedWeightedSelect.getDefaultEfficiencyWeight(),
+            ImprovedWeightedSelect.getDefaultCommitmentRiskWeight(),
+            ImprovedWeightedSelect.getDefaultMultiCollectThreshold(),
+            ImprovedWeightedSelect.getDefaultContinuationWeight()
         };
     }
     
@@ -399,7 +408,8 @@ public class GeneticOptimizer {
             ind.genes[0], ind.genes[1], ind.genes[2], ind.genes[3],
             ind.genes[4], ind.genes[5], ind.genes[6], ind.genes[7],
             ind.genes[8], ind.genes[9], ind.genes[10], ind.genes[11],
-            ind.genes[12]
+            ind.genes[12], ind.genes[13], ind.genes[14], ind.genes[15],
+            ind.genes[16]
         );
     }
     

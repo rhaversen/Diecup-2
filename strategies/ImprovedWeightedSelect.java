@@ -22,6 +22,10 @@ public class ImprovedWeightedSelect implements Strategy {
     private final double gameProgressWeight;    // Adjusts strategy based on how many slots are complete
     private final double allDiceBonusWeight;    // Weight for using all remaining dice this roll
     private final double remainingValueWeight;  // Weight for expected value of remaining dice after this choice
+    private final double efficiencyWeight;       // Points per dice used (singles more efficient than pairs)
+    private final double commitmentRiskWeight;   // Penalty for committing to hard-to-continue numbers (11, 12)
+    private final double multiCollectThreshold;  // Minimum collectable to consider rare numbers (prevents bad commits)
+    private final double continuationWeight;     // Probability of being able to continue after this pick
 
     // default constructor using tuned defaults
     public ImprovedWeightedSelect(Statistics statistics) {
@@ -38,7 +42,11 @@ public class ImprovedWeightedSelect implements Strategy {
                 getDefaultVarianceWeight(),
                 getDefaultGameProgressWeight(),
                 getDefaultAllDiceBonusWeight(),
-                getDefaultRemainingValueWeight());
+                getDefaultRemainingValueWeight(),
+                getDefaultEfficiencyWeight(),
+                getDefaultCommitmentRiskWeight(),
+                getDefaultMultiCollectThreshold(),
+                getDefaultContinuationWeight());
     }
 
     public ImprovedWeightedSelect(Statistics statistics,
@@ -54,7 +62,11 @@ public class ImprovedWeightedSelect implements Strategy {
             double varianceWeight,
             double gameProgressWeight,
             double allDiceBonusWeight,
-            double remainingValueWeight) {
+            double remainingValueWeight,
+            double efficiencyWeight,
+            double commitmentRiskWeight,
+            double multiCollectThreshold,
+            double continuationWeight) {
         this.statistics = statistics;
         this.opportunityWeight = opportunityWeight;
         this.rarityWeight = rarityWeight;
@@ -69,6 +81,10 @@ public class ImprovedWeightedSelect implements Strategy {
         this.gameProgressWeight = gameProgressWeight;
         this.allDiceBonusWeight = allDiceBonusWeight;
         this.remainingValueWeight = remainingValueWeight;
+        this.efficiencyWeight = efficiencyWeight;
+        this.commitmentRiskWeight = commitmentRiskWeight;
+        this.multiCollectThreshold = multiCollectThreshold;
+        this.continuationWeight = continuationWeight;
     }
 
     public int getSelectedNumber(Map<Integer, Integer> values, Scoreboard scoreboard) {
@@ -118,6 +134,10 @@ public class ImprovedWeightedSelect implements Strategy {
         double gameProgressValue = computeGameProgressAdjustment(gameProgress, pointsOnBoard, maxPoints);
         double allDiceValue = computeAllDiceBonus(value, collectable, totalDiceInRoll);
         double remainingValue = computeRemainingTurnValue(value, collectable, pointsOnBoard, maxPoints, totalDiceInRoll);
+        double efficiencyValue = computeEfficiency(value, collectable);
+        double commitmentRiskValue = computeCommitmentRisk(value);
+        double multiCollectValue = computeMultiCollectBonus(value, collectable);
+        double continuationValue = computeContinuationProbability(value, totalDiceInRoll, collectable);
 
         return rarityWeight * rarityValue
                 + progressWeight * progressValue
@@ -129,7 +149,11 @@ public class ImprovedWeightedSelect implements Strategy {
                 + varianceWeight * varianceValue
                 + gameProgressWeight * gameProgressValue
                 + allDiceBonusWeight * allDiceValue
-                + remainingValueWeight * remainingValue;
+                + remainingValueWeight * remainingValue
+                + efficiencyWeight * efficiencyValue
+                + commitmentRiskWeight * commitmentRiskValue
+                + multiCollectThreshold * multiCollectValue
+                + continuationWeight * continuationValue;
     }
 
     private double computeRarityValue(double frequency, int collectable) {
@@ -263,55 +287,152 @@ public class ImprovedWeightedSelect implements Strategy {
         return total;
     }
 
+    /**
+     * Efficiency: points per dice used.
+     * Singles use 1 die per point, pairs use 2 dice per point.
+     * Higher = more efficient use of dice.
+     */
+    private double computeEfficiency(int value, int collectable) {
+        int diceUsed = statistics.isPairNumber(value) ? collectable * 2 : collectable;
+        if (diceUsed == 0) return 0;
+        return (double) collectable / diceUsed;  // 1.0 for singles, 0.5 for pairs
+    }
+    
+    /**
+     * Commitment risk: penalty for committing to numbers that are hard to continue.
+     * 11 and 12 have very low probability of appearing again (41.8% and 26.3%).
+     * Committing to them often means wasting a turn.
+     * Returns negative value for risky numbers (so positive weight = avoid risk).
+     */
+    private double computeCommitmentRisk(int value) {
+        // Expected points per turn if committed to this number (from theoretical analysis)
+        // Lower expected = higher risk
+        double[] expectedPointsPerTurn = {
+            1.75, 1.75, 1.75, 1.75, 1.75, 1.75,  // Singles 1-6: ~1.75
+            1.82, 1.58, 1.21, 0.94, 0.56, 0.31   // Pairs 7-12: decreasing
+        };
+        int idx = value - 1;
+        if (idx < 0 || idx >= expectedPointsPerTurn.length) return 0;
+        
+        // Normalize: return negative for low expected (risky), positive for high expected (safe)
+        // Baseline around 1.5, so 11 (0.56) and 12 (0.31) get strong negative
+        return expectedPointsPerTurn[idx] - 1.5;
+    }
+    
+    /**
+     * Multi-collect bonus: reward for having multiple collectables of rare numbers.
+     * The insight: only pick 11 or 12 when you have 2+ pairs available.
+     * Returns bonus when collectable >= 2 for rare numbers.
+     */
+    private double computeMultiCollectBonus(int value, int collectable) {
+        // Only applies to rare pair numbers (10, 11, 12)
+        if (value < 10) return 0;
+        
+        // Bonus scales with how many we can collect
+        // If collectable >= 2, it's a good opportunity for rare numbers
+        if (collectable >= 2) {
+            return collectable - 1;  // Bonus of 1 for 2, 2 for 3, etc.
+        } else {
+            // Penalty for picking rare number with only 1 collectable
+            // This discourages bad commits to 11 or 12 with just 1 pair
+            return -1.0;
+        }
+    }
+    
+    /**
+     * Continuation probability: likelihood of being able to continue after this pick.
+     * Based on remaining dice and the probability of rolling the target again.
+     */
+    private double computeContinuationProbability(int value, int totalDice, int collectable) {
+        int diceUsed = statistics.isPairNumber(value) ? collectable * 2 : collectable;
+        int remainingDice = totalDice - diceUsed;
+        
+        if (remainingDice <= 0) {
+            // All dice used = free turn, probability is 1.0 (sort of)
+            return 1.0;
+        }
+        
+        // Probability of getting at least one match with remaining dice
+        Double freq = statistics.getGeneralFrequencies().get(value);
+        if (freq == null || freq == 0) return 0;
+        
+        // For singles: P(at least one) = 1 - (5/6)^remainingDice
+        // For pairs: more complex, approximate using frequency
+        if (!statistics.isPairNumber(value)) {
+            return 1 - Math.pow(5.0/6.0, remainingDice);
+        } else {
+            // Approximate pair continuation probability
+            // freq is already the probability per 6-dice roll, scale by remaining
+            double scaledFreq = freq * remainingDice / 6.0;
+            return Math.min(1.0, scaledFreq);
+        }
+    }
+
     public static double getDefaultOpportunityWeight() {
-        return 1.009;
+        return 4.691;
     }
 
     public static double getDefaultRarityWeight() {
-        return -0.010;
+        return 0.373;
     }
 
     public static double getDefaultProgressWeight() {
-        return 0.501;
+        return 0.871;
     }
 
     public static double getDefaultRarityScalar() {
-        return 0.179;
+        return 2.943;
     }
 
     public static double getDefaultCollectionWeight() {
-        return -0.488;
+        return 0.773;
     }
 
     public static double getDefaultCollectionScalar() {
-        return 0.082;
+        return 0.423;
     }
 
     public static double getDefaultCompletionWeight() {
-        return 0.562;
+        return 1.903;
     }
 
     public static double getDefaultCatchUpWeight() {
-        return 0.608;
+        return 5.418;
     }
     
     public static double getDefaultDiceCostWeight() {
-        return -0.264;
+        return 0.950;
     }
     
     public static double getDefaultVarianceWeight() {
-        return 0.562;
+        return 1.520;
     }
     
     public static double getDefaultGameProgressWeight() {
-        return 0.508;
+        return 2.469;
     }
     
     public static double getDefaultAllDiceBonusWeight() {
-        return 2.180;
+        return 8.166;
     }
     
     public static double getDefaultRemainingValueWeight() {
-        return -0.202;
+        return 2.273;
+    }
+
+    public static double getDefaultEfficiencyWeight() {
+        return 0.962;
+    }
+    
+    public static double getDefaultCommitmentRiskWeight() {
+        return 0.590;
+    }
+    
+    public static double getDefaultMultiCollectThreshold() {
+        return 0.534;
+    }
+    
+    public static double getDefaultContinuationWeight() {
+        return 2.513;
     }
 }
