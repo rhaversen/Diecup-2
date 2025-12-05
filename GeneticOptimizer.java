@@ -54,6 +54,9 @@ public class GeneticOptimizer {
     private static final int RESTART_THRESHOLD = 10;     // Inject diversity after N generations without improvement
     private static final double RESTART_FRACTION = 0.50; // Replace this fraction of population on restart
     
+    /** New Individual Generation */
+    private static final double INIT_SPREAD = 1.5;       // Std dev for generating new individuals around center
+    
     /** Threading */
     private static final int FREE_THREADS = 1;  // Leave some CPU free for system responsiveness
     private static final int THREAD_COUNT = Math.max(1, Runtime.getRuntime().availableProcessors() - FREE_THREADS);
@@ -153,8 +156,8 @@ public class GeneticOptimizer {
     private void initializePopulation() {
         log("Initializing population...");
         
-        // Seed with known good parameters from strategy defaults
-        double[] knownGood = {
+        // Seed with strategy default parameters
+        double[] initialParams = {
             ImprovedWeightedSelect.getDefaultOpportunityWeight(),
             ImprovedWeightedSelect.getDefaultRarityWeight(),
             ImprovedWeightedSelect.getDefaultProgressWeight(),
@@ -169,22 +172,73 @@ public class GeneticOptimizer {
             ImprovedWeightedSelect.getDefaultAllDiceBonusWeight(),
             ImprovedWeightedSelect.getDefaultRemainingValueWeight()
         };
-        population.add(new Individual(knownGood));
-        log("Seeded with known good parameters from strategy defaults");
+        population.add(new Individual(initialParams));
+        log("Seeded with strategy default parameters");
         
         // Fill rest with random individuals
         for (int i = 1; i < POPULATION_SIZE; i++) {
-            population.add(createRandomIndividual());
+            population.add(createNewIndividual());
         }
     }
     
-    private Individual createRandomIndividual() {
+    /**
+     * Create a new individual centered around globalBest, or population center, or 10 if no population.
+     * Uses Gaussian distribution so most values are near center but exploration is possible.
+     */
+    private Individual createNewIndividual() {
         double[] genes = new double[PARAM_COUNT];
+        double[] center = getCenter();
+        
         for (int i = 0; i < PARAM_COUNT; i++) {
-            // Range -1 to 2 to allow exploration in all directions
-            genes[i] = masterRandom.nextDouble() * 3.0 - 1.0;
+            genes[i] = center[i] + masterRandom.nextGaussian() * INIT_SPREAD;
+            genes[i] = Math.max(0.0, genes[i]);  // Clamp to non-negative
         }
         return new Individual(genes);
+    }
+    
+    /**
+     * Get the center point for generating new individuals.
+     * Priority: globalBest > population centroid > strategy defaults
+     */
+    private double[] getCenter() {
+        if (globalBest != null) {
+            return globalBest.genes;
+        }
+        if (!population.isEmpty()) {
+            return getPopulationCentroid();
+        }
+        // Fallback for initial population - use strategy defaults
+        return new double[] {
+            ImprovedWeightedSelect.getDefaultOpportunityWeight(),
+            ImprovedWeightedSelect.getDefaultRarityWeight(),
+            ImprovedWeightedSelect.getDefaultProgressWeight(),
+            ImprovedWeightedSelect.getDefaultRarityScalar(),
+            ImprovedWeightedSelect.getDefaultCollectionWeight(),
+            ImprovedWeightedSelect.getDefaultCollectionScalar(),
+            ImprovedWeightedSelect.getDefaultCompletionWeight(),
+            ImprovedWeightedSelect.getDefaultCatchUpWeight(),
+            ImprovedWeightedSelect.getDefaultDiceCostWeight(),
+            ImprovedWeightedSelect.getDefaultVarianceWeight(),
+            ImprovedWeightedSelect.getDefaultGameProgressWeight(),
+            ImprovedWeightedSelect.getDefaultAllDiceBonusWeight(),
+            ImprovedWeightedSelect.getDefaultRemainingValueWeight()
+        };
+    }
+    
+    /**
+     * Calculate the centroid (average) of the current population.
+     */
+    private double[] getPopulationCentroid() {
+        double[] centroid = new double[PARAM_COUNT];
+        for (Individual ind : population) {
+            for (int i = 0; i < PARAM_COUNT; i++) {
+                centroid[i] += ind.genes[i];
+            }
+        }
+        for (int i = 0; i < PARAM_COUNT; i++) {
+            centroid[i] /= population.size();
+        }
+        return centroid;
     }
     
     // ===== EVALUATION WITH COMMON RANDOM NUMBERS =====
@@ -388,10 +442,10 @@ public class GeneticOptimizer {
             }
         }
         
-        // 3. Diversity injection - random individuals
+        // 3. Diversity injection - new individuals centered around globalBest
         int diversityCount = (int) (POPULATION_SIZE * DIVERSITY_RATIO);
         for (int i = 0; i < diversityCount; i++) {
-            nextGen.add(createRandomIndividual());
+            nextGen.add(createNewIndividual());
         }
         
         // 4. Offspring - crossover and mutation
@@ -446,6 +500,11 @@ public class GeneticOptimizer {
             }
         }
         
+        // Clamp all genes to be non-negative
+        for (int i = 0; i < PARAM_COUNT; i++) {
+            childGenes[i] = Math.max(0.0, childGenes[i]);
+        }
+        
         return new Individual(childGenes);
     }
     
@@ -458,14 +517,17 @@ public class GeneticOptimizer {
         for (int i = 0; i < PARAM_COUNT; i++) {
             if (masterRandom.nextDouble() < MUTATION_RATE_PER_GENE) {
                 ind.genes[i] = ind.genes[i] + masterRandom.nextGaussian() * mutationStrength;
+                ind.genes[i] = Math.max(0.0, ind.genes[i]);  // Clamp to non-negative
                 mutated = true;
             }
         }
         
-        // Occasional large mutation (exploration) - range -1 to 2
+        // Occasional large mutation (exploration) - reset gene to new value around center
         if (masterRandom.nextDouble() < LARGE_MUTATION_RATE) {
             int idx = masterRandom.nextInt(PARAM_COUNT);
-            ind.genes[idx] = masterRandom.nextDouble() * 3.0 - 1.0;
+            double center = getCenter()[idx];
+            ind.genes[idx] = center + masterRandom.nextGaussian() * INIT_SPREAD;
+            ind.genes[idx] = Math.max(0.0, ind.genes[idx]);
             mutated = true;
         }
         
@@ -502,9 +564,9 @@ public class GeneticOptimizer {
     
     private void injectDiversity(double fraction) {
         int count = (int) (POPULATION_SIZE * fraction);
-        // Replace worst individuals
+        // Replace worst individuals with new individuals centered around globalBest
         for (int i = POPULATION_SIZE - count; i < POPULATION_SIZE; i++) {
-            population.set(i, createRandomIndividual());
+            population.set(i, createNewIndividual());
         }
     }
     
