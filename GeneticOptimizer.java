@@ -42,12 +42,14 @@ public class GeneticOptimizer {
     private static final int GAMES_PER_GENERATION = 5_000;     // Games per individual per generation (using shared seeds)
     
     /** Fitness Component Weights
-     * NOTE: Median and Q3 were removed because game turns are discrete integers,
-     * causing these percentiles to be constant (19 and 21) across all strategies.
-     * They added no discriminative power.
+     * Mean is the primary objective. Variance rewards consistency.
+     * P95 and max penalize tail risk (worst-case games).
+     * Median/Q3 were excluded since discrete turn counts make them constant.
      */
-    private static final double MEAN_WEIGHT = 0.80;      // Weight for mean turns (primary objective)
-    private static final double VARIANCE_WEIGHT = 0.20;  // Weight for variance (consistency)
+    private static final double MEAN_WEIGHT = 0.60;      // Weight for mean turns (primary objective)
+    private static final double VARIANCE_WEIGHT = 0.15;  // Weight for variance (consistency)
+    private static final double P95_WEIGHT = 0.15;       // Weight for 95th percentile (tail risk)
+    private static final double MAX_WEIGHT = 0.10;       // Weight for max turns (worst case)
     
     /** Stagnation Settings */
     private static final int STAGNATION_THRESHOLD = 3;   // Increase mutation after N generations without improvement
@@ -342,16 +344,23 @@ public class GeneticOptimizer {
             scores[i] = game.getTurns();
         }
         
+        // Sort for percentile calculations
+        Arrays.sort(scores);
+        
         // Calculate statistics
         ind.meanTurns = mean(scores);
         ind.variance = variance(scores);
+        ind.p95Turns = percentile(scores, 95);
+        ind.maxTurns = scores[scores.length - 1];
         ind.standardError = Math.sqrt(ind.variance / runs);
         ind.evaluationCount = runs;
         
         // Composite fitness: weighted combination (lower is better)
-        // Normalize variance by taking sqrt to put it on same scale as turns
+        // Normalize variance and p95/max to similar scale as mean
         ind.fitness = MEAN_WEIGHT * ind.meanTurns
-                    + VARIANCE_WEIGHT * Math.sqrt(ind.variance);
+                    + VARIANCE_WEIGHT * Math.sqrt(ind.variance)
+                    + P95_WEIGHT * (ind.p95Turns - ind.meanTurns)  // Excess over mean
+                    + MAX_WEIGHT * (ind.maxTurns - ind.meanTurns); // Extreme penalty
     }
     
     /**
@@ -369,8 +378,8 @@ public class GeneticOptimizer {
             // First generation
             globalBest = screeningBest.copy();
             totalGamesPlayed = screeningBest.evaluationCount;
-            log(String.format("  Initial best: fit=%.4f (mean=%.2f, var=%.2f)",
-                globalBest.fitness, globalBest.meanTurns, globalBest.variance));
+            log(String.format("  Initial best: fit=%.4f (mean=%.2f, var=%.2f, p95=%.1f, max=%.0f)",
+                globalBest.fitness, globalBest.meanTurns, globalBest.variance, globalBest.p95Turns, globalBest.maxTurns));
             return;
         }
         
@@ -393,8 +402,8 @@ public class GeneticOptimizer {
                 double oldFit = reEvaluatedGlobalBest != null ? reEvaluatedGlobalBest.fitness : 0;
                 log(String.format("  *** New best: fit %.4f -> %.4f ***",
                     oldFit, screeningBest.fitness));
-                log(String.format("      mean: %.2f, var: %.2f",
-                    screeningBest.meanTurns, screeningBest.variance));
+                log(String.format("      mean: %.2f, var: %.2f, p95: %.1f, max: %.0f",
+                    screeningBest.meanTurns, screeningBest.variance, screeningBest.p95Turns, screeningBest.maxTurns));
             }
             
             globalBest = screeningBest.copy();
@@ -426,6 +435,22 @@ public class GeneticOptimizer {
         double sumSq = 0;
         for (double v : values) sumSq += (v - m) * (v - m);
         return sumSq / (values.length - 1);  // Sample variance
+    }
+    
+    /**
+     * Calculate percentile from sorted array.
+     * @param sortedValues Array must already be sorted ascending
+     * @param p Percentile (0-100)
+     */
+    private static double percentile(double[] sortedValues, double p) {
+        if (sortedValues.length == 0) return 0;
+        double index = (p / 100.0) * (sortedValues.length - 1);
+        int lower = (int) Math.floor(index);
+        int upper = (int) Math.ceil(index);
+        if (lower == upper) return sortedValues[lower];
+        // Linear interpolation
+        double weight = index - lower;
+        return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
     }
     
     // ===== EVOLUTION =====
@@ -587,9 +612,9 @@ public class GeneticOptimizer {
         double progress = (double) generation / MAX_GENERATIONS;
         long eta = (long) (elapsed / progress) - elapsed;
         
-        log(String.format("Gen %d - Fit: %.4f (mean=%.2f, σ²=%.2f) - %s - ETA: %s - %d games - stag=%d",
+        log(String.format("Gen %d - Fit: %.4f (mean=%.2f, var=%.2f, p95=%.1f, max=%.0f) - %s - ETA: %s - %d games - stag=%d",
             generation,
-            globalBest.fitness, globalBest.meanTurns, globalBest.variance, 
+            globalBest.fitness, globalBest.meanTurns, globalBest.variance, globalBest.p95Turns, globalBest.maxTurns,
             formatDuration(elapsed), formatDuration(eta), totalGamesPlayed, stagnationCount));
         
         if (improved) {
@@ -617,6 +642,8 @@ public class GeneticOptimizer {
         double fitness = Double.MAX_VALUE;      // Composite fitness score
         double meanTurns = Double.MAX_VALUE;    // Mean turns to win
         double variance = Double.MAX_VALUE;     // Variance in turns
+        double p95Turns = Double.MAX_VALUE;     // 95th percentile turns (tail risk)
+        double maxTurns = Double.MAX_VALUE;     // Maximum turns (worst case)
         double standardError = Double.MAX_VALUE;
         int evaluationCount = 0;
         boolean isElite = false;
@@ -630,6 +657,8 @@ public class GeneticOptimizer {
             c.fitness = this.fitness;
             c.meanTurns = this.meanTurns;
             c.variance = this.variance;
+            c.p95Turns = this.p95Turns;
+            c.maxTurns = this.maxTurns;
             c.standardError = this.standardError;
             c.evaluationCount = this.evaluationCount;
             c.isElite = this.isElite;
@@ -641,6 +670,8 @@ public class GeneticOptimizer {
             this.fitness = Double.MAX_VALUE;
             this.meanTurns = Double.MAX_VALUE;
             this.variance = Double.MAX_VALUE;
+            this.p95Turns = Double.MAX_VALUE;
+            this.maxTurns = Double.MAX_VALUE;
             this.standardError = Double.MAX_VALUE;
         }
         
@@ -649,9 +680,11 @@ public class GeneticOptimizer {
     private void printIndividualDetails(Individual ind) {
         log(String.format("Composite Fitness: %.4f (%d evaluations)", ind.fitness, ind.evaluationCount));
         log(String.format("  Mean:     %.4f turns", ind.meanTurns));
-        log(String.format("  Variance: %.4f (σ=%.4f)", ind.variance, Math.sqrt(ind.variance)));
-        log(String.format("  Weights:  mean=%.0f%%, var=%.0f%%",
-            MEAN_WEIGHT * 100, VARIANCE_WEIGHT * 100));
+        log(String.format("  Variance: %.4f (std=%.4f)", ind.variance, Math.sqrt(ind.variance)));
+        log(String.format("  P95:      %.1f turns (tail risk)", ind.p95Turns));
+        log(String.format("  Max:      %.0f turns (worst case)", ind.maxTurns));
+        log(String.format("  Weights:  mean=%.0f%%, var=%.0f%%, p95=%.0f%%, max=%.0f%%",
+            MEAN_WEIGHT * 100, VARIANCE_WEIGHT * 100, P95_WEIGHT * 100, MAX_WEIGHT * 100));
         log("Parameters:");
         for (int i = 0; i < PARAM_NAMES.length; i++) {
             log(String.format("  %s = %.4f", PARAM_NAMES[i], ind.genes[i]));
