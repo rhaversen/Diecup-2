@@ -12,6 +12,13 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Log Parser",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "parse_logs.py",
+            "console": "integratedTerminal"
+        },
+        {
             "type": "java",
             "name": "Main (Start Game)",
             "request": "launch",
