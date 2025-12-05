@@ -128,7 +128,7 @@ public class GeneticOptimizer {
         initializePopulation();
         evaluatePopulation(0);
         
-        log(String.format("Initial best: %.4f turns", globalBest.fitness));
+        log(String.format("Initial best fitness: %.4f", globalBest.fitness));
         log("");
         double previousBest = globalBest.fitness;
         
